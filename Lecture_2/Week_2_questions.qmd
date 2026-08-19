@@ -1,0 +1,24 @@
+---
+title: "Bayesian Computational Methods: Lecture 2"
+author: "Isabella Lethbridge"
+format: html
+editor: visual
+---
+
+## Question 3
+
+```{r}
+# Read in data: 
+dat = read.csv('measurements.csv')
+View(dat)
+```
+
+a)  
+
+```{r}
+hist(dat$x,
+     breaks=20,
+     col='lightblue')
+
+plot(dat$x)
+```

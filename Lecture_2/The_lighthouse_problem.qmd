@@ -1,0 +1,88 @@
+---
+title: "Bayesian Computational Methods: The lighthouse problem"
+author: "Isabella Lethbridge"
+format: html
+editor: visual
+---
+
+## The lighthouse problem
+
+### Exploratory data analysis
+
+```{r}
+# Read in data: 
+dat = read.csv('Lecture_2/measurements.csv')
+# View(dat)
+```
+
+```{r}
+hist(dat$x,
+     col='lightblue',
+     xlab = 'xk',
+     main = 'Distance along coastline where flashes are measured.')
+```
+
+### Simulate data
+
+```{r}
+set.seed(1)
+
+alpha = 3.25
+beta  = 0.5
+
+npoints = 100
+angles = runif(npoints,-pi/2,pi/2) 
+
+xk = rep(NA,length(angles))
+xk[angles<0] = alpha-beta*tan(abs(angles[angles<0]))
+xk[angles>0] = alpha+beta*tan(angles[angles>0])
+xk[angles==0] = alpha
+
+xk = xk[xk>=0];xk=xk[xk<=5]
+```
+
+### Posterior distribution 
+
+```{r}
+# Posterior distribution:
+# alpha: position along coastline
+# beta:  position out to sea
+# xk:    data
+lhouse_post_fxn = function(alpha,beta,xk) {
+  n = length(xk)
+  
+  llik = length(xk)*log(beta) - sum(log(beta^2+(xk-alpha)^2))
+  return(exp(llik)) # returns likelihood 
+}
+
+# Vectorize function:
+lhouse_post_vfxn = Vectorize(FUN=lhouse_post_fxn,vectorize.args=c('alpha','beta'))
+```
+
+### Plotting posterior distribution 
+
+```{r}
+alpha_seq = seq(0,5,length=100)
+beta_seq  = seq(0.1,2,length=100)
+
+Z = outer(X=alpha_seq,
+          Y=beta_seq,
+          FUN='lhouse_post_vfxn',
+          xk=xk)
+
+contour(alpha_seq,
+        beta_seq,
+        Z,
+        nlevels=10,
+        xlab=expression(alpha),
+        ylab=expression(beta),
+        main='',
+        col='deeppink')
+points(x=3.25,
+       y=0.5,
+       col='blue',
+       pch=16)
+```
+
+## The lighthouse problem 
+Here we bound $\theta_{k}$ under the assumption that there is some finite piece of coastline over which the detector operates. 

@@ -1,0 +1,63 @@
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{bm}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{subcaption}
+\usepackage{etoolbox}
+
+\usepackage{listings}
+\usepackage{xcolor}
+
+\newcommand{\bs}[1]{\text{\pmb{$#1$}}}
+
+% Define custom colors to match your target layout
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\definecolor{codeblue}{rgb}{1.0, 0.08, 0.58} % DeepPink
+
+% Define R language rules for listings
+\lstdefinelanguage{R}{
+  keywords={TRUE,FALSE,NULL,NA,NaN,Inf,function,in,if,else,for,while,repeat,break,next},
+  keywordstyle=\color{magenta}\bfseries,
+  otherkeywords={=, <-, +,-,*,/,^\%,~\%,<,>,<=,>=,==,!=,!,&,|},
+  morekeywords=[2]{c, data.frame, betareg, coef, vcov, cor, length, log, sum, pnorm, qnorm, nlm, library, require, sample, barplot, boxplot, prop.table, table, legend, colnames, t, diag, solve},
+  keywordstyle=[2]\color{codeblue},
+  sensitive=true,
+  morecomment=[l]{\#},
+  commentstyle=\color{codegreen},
+  morestring=[b]",
+  morestring=[b]',
+  stringstyle=\color{codepurple}
+}
+
+% Apply the style globally
+\lstdefinestyle{mystyle}{
+  language=R,
+  backgroundcolor=\color{backcolour},
+  basicstyle=\ttfamily\footnotesize,
+  breakatwhitespace=false,
+  breaklines=true,
+  captionpos=b,
+  keepspaces=true,
+  numbers=left,
+  numbersep=5pt,
+  numberstyle=\tiny\color{codegray},
+  showspaces=false,
+  showstringspaces=false,
+  showtabs=false,
+  tabsize=2
+}
+
+\lstset{style=mystyle}
+
+% Append a page break directly to the \tableofcontents command
+\gappto\tableofcontents{\clearpage}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\myTitle}
+\cfoot{\thepage}
