@@ -12,6 +12,19 @@
 
 \newcommand{\bs}[1]{\text{\pmb{$#1$}}}
 
+% Shrink space around display math equations ($$ ... $$)
+\AtBeginDocument{
+  \setlength{\abovedisplayskip}{4pt}
+  \setlength{\belowdisplayskip}{0pt}
+  \setlength{\abovedisplayshortskip}{0pt}
+  \setlength{\belowdisplayshortskip}{-4pt}
+}
+
+\setlength{\abovedisplayskip}{4pt}
+\setlength{\belowdisplayskip}{4pt}
+\setlength{\abovedisplayshortskip}{2pt}
+\setlength{\belowdisplayshortskip}{2pt}
+
 % Define custom colors to match your target layout
 \definecolor{codegreen}{rgb}{0,0.6,0}
 \definecolor{codegray}{rgb}{0.5,0.5,0.5}

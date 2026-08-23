@@ -51,40 +51,35 @@ library(dplyr)
 library(purrr)
 ```
 
-# Introduction
+## Introduction
 
 We are fitting the following Bayesian logistic regression model to the `SAheart` dataset from the `ElemStatLearn` R package:
-
 $$
 log(\frac{p_{i}}{1-p_{i}}) = \beta_0 + \beta_1\text{age} + \beta_2\text{famhist} + \beta_3\text{tobacco},
 $$
 
 where $p_i = \text{Pr}(chd_i = 1 \mid \bs{x}_i,\bs{\beta}) \quad \text{and} \quad \bs{x}_i = (1, \text{age}_i, \text{famhist}_i, \text{tobacco}_i)$ and `famhist` is coded as a binary predictor where $0$ indicates absence and $1$ indicates presence.
 
-# Question a
+## Question a
 
 Expert 1 provided the median probability that a patient would develop coronary heart disease for M=14 design points. Based on the methods laid out in Choy et al. (2009), we denote the median probabilities as $\text{Z}_{\text{m}}$ and model them with the following Beta distribution:
-
 $$
 \text{Z}_{m} \sim Beta(\mu_m,\gamma_m) \quad \text{for} \quad m = 1, \dots,\text{M} ,
 $$
 
-where $\mu_m$ is the mean and $\gamma_m$ is the precision parameter of $\text{Z}_{\text{m}}$. The logit link below relates the expert's elicited median probabilities to the regression coefficients.
-
+where $\mu_m$ is the mean and $\gamma_m$ is the precision parameter. The logit link below relates the expert's elicited median probabilities to the regression coefficients.
 $$
 logit(\mu_{m}) = \bs{x}_{m}^{T}\beta, \quad \bs{x}^T_m = (1, \text{age}_m, \text{famhist}_m, \text{tobacco}_m).
 $$
 
 Under the assumption that the prior distribution of the regression coefficients are multivariate normal random variables:
-
 $$
 \bs{\beta} = (\beta_0, \beta_1, \beta_2, \beta_3)^T\sim N_{4}(\bs{\mu}_0,\bs{\Sigma}_0).
 $$
 
 $\bs{\mu}_0$ and $\bs{\Sigma_0}$ can be estimated by fitting a Beta regression model. `betareg`, with a default logit link function was fitted to the 14 elicited median probabilities using covariates `age`, `famhist` and `tobacco`.
 
-Maximum Likelihood Estimators are asymptotically multivariate normal. The joint sampling distribution of the estimated regression coefficients, $\hat\beta$, approaches a Multivariate Normal distribution with mean equal to the true parameter vector. Following the Choy et al. (2009) elicitation procedure, we use the following sample estimates to specify the prior distribution parameters:
-
+Following the Choy et al. (2009) elicitation procedure, we use the following sample estimates to specify the prior distribution parameters:
 $$
 \bs{\mu}_0 = \hat{\bs{\beta}} \quad \text{and} \quad \bs{\Sigma}_0 = \widehat{ Var}(\hat{\bs{\beta}}).
 $$
@@ -124,42 +119,36 @@ S0_a = vcov(betareg_fit)[1:4,1:4]
 cor_mat_a = cov2cor(S0_a)
 ```
 
-# Question b
+## Question b
 
 Expert 2 provided lower and upper quartile values associated with the probability that a patient would develop coronary heart disease, across M=14 design points.
 
 Let $p_m= \text{Pr}(chd_m = 1 \mid \bs{x}_m,\bs{\beta})$, then:
-
 $$
 \text{Pr}(\theta_m \le q_{0.25,m}) = 0.25, \quad \text{Pr}(\theta_m \le q_{0.75,m}) = 0.75.
 $$
 
 Following the methods outlined in Hosack et al. (2017), the 25% and 75% quantiles are transformed to linear predictors via the logit link function:
-
 $$
 \eta_{0.25,m} = \text{logit}(q_{0.25,m}) \quad \text{and} \quad \eta_{0.75,m} = \text{logit}(q_{0.75,m}).
 $$
 
 Assuming a normal prior for $\bs{\beta}$:
-
 $$
 \eta_m = \bs{x}_m^T\bs{\beta} \sim N(m_m,v_m)
 $$
 
 This gives:
-
 $$
 \text{Pr}(g(p_m) \le g(q_{0.25,m})) = \Phi(\eta_m;m_m,v_m) = 0.25.
 $$
 
 Assuming that $\eta_m = \bs{x}^T_m\bs{\beta} \sim N(m_m,v_m)$, the target interval probabilities are $\bs{l} = (l_1,l_2,l_3)^T = (0.25,0.50,0.25)^T$. For each design point $m$, the parameters $(m_m,v_m)$ are estimated to minimise the Kullback-Leibler (KL) divergence using `nlm()`:
-
 $$
 \text{KL}(m_m,v_m) = \sum^{3}_{j=1} \text{log} \Big( \frac{l_j}{Z_j(m_m,v_m)}\Big) l_j.
 $$
 
 where
-
 $$
 \begin{aligned}
 Z_1(m_m, v_m) &= \Phi\left(\frac{\eta_{0.25, m} - m_m}{\sqrt{v_m}}\right), \\[4pt]
@@ -197,11 +186,12 @@ KL_fxn = function(par,p25,p75) {
   # Mean and standard deviation: 
   m = par[1]
   v = par[2]
+  sd = sqrt(v)
   
   # Calculate integrals: 
-  Z1 = pnorm(q=p25,mean=m,sd=v)
-  Z2 = pnorm(q=p75,mean=m,sd=v)-Z1
-  Z3 = 1-pnorm(q=p75,mean=m,sd=v)
+  Z1 = pnorm(q=p25,mean=m,sd=sd)
+  Z2 = pnorm(q=p75,mean=m,sd=sd)-Z1
+  Z3 = 1-pnorm(q=p75,mean=m,sd=sd)
   
   # Calculate Kullback-Leibler for each 'integral':
   KL1 = sum(log(0.25/Z1)*0.25)
@@ -258,7 +248,7 @@ Let $\bs{m} = (m_1, \dots, m_M)^\top$ and $\bs{V} = \text{diag}(v_1, \dots, v_M)
 
 $$\bs{\mu}_0 = \left(\bs{X}^\top \bs{V}^{-1} \bs{X}\right)^{-1} \bs{X}^\top \bs{V}^{-1} \bs{m} \quad \text{and} \quad \bs{\Sigma}_0 = \left(\bs{X}^\top \bs{V}^{-1} \bs{X}\right)^{-1}.$$
 
-# Question c
+## Question c
 
 ```{r}
 #| echo: false 
@@ -266,16 +256,16 @@ $$\bs{\mu}_0 = \left(\bs{X}^\top \bs{V}^{-1} \bs{X}\right)^{-1} \bs{X}^\top \bs{
 param_names = c('Intercept','age','famhist','tobacco')
 
 # Prior standard deviations: 
-sd_1 = sqrt(diag(S0_a))
-sd_2 = sqrt(diag(S0_b))
+sd_a = sqrt(diag(S0_a))
+sd_b = sqrt(diag(S0_b))
 
 # Prior comparison:
 prior_comparison = data.frame(
   Parameter    = param_names,
   Expert1_Mean = as.numeric(mu0_a),
   Expert2_Mean = as.numeric(mu0_b),
-  Expert1_SD   = sd_1,
-  Expert2_SD   = sd_2
+  Expert1_SD   = sd_a,
+  Expert2_SD   = sd_b
 )
 ```
 
@@ -298,7 +288,11 @@ knitr::kable(
 
 ```
 
-The two elicitation methods result in similar prior means, as seen in the $\beta$ coefficients, in @tbl-pc. The differences in the prior standard deviations indicate the differing levels of uncertainty associated with the two approaches. Expert 1 produces a more concentrated prior, as seen in @fig-prior-comparison.
+The two elicitation methods result in similar prior mean vectors, as seen from the $\beta$ coefficients, in @tbl-pc. The differences in the prior standard deviations indicate the differing levels of uncertainty associated with the two approaches. Expert 1 produces a more concentrated prior compared to Expert 2, as seen in @fig-prior-comparison. The standard deviations associated with Expert 2's prior are 5 times larger than that of Expert 1's. 
+
+@fig-prior-comparison illustrates how Expert 1's prior has greater precision. This would result in the prior dominating the regression analysis by pulling the posterior distribution towards its means irrespective of the actual data. Expert 2's prior has less influence. This would allow for the observed data to influence the posterior distribution. 
+
+`betareg` estimates the precision parameter based on overall model fit across the design points. A high model fit can falsely inflate precision, producing an overly concentrated prior. The Kullback-Leibler divergence captures the expert's uncertainty since the variance for each design point is individually optimised to fit the experts elicited quantiles.  
 
 ```{r}
 #| label: fig-prior-comparison
@@ -434,11 +428,12 @@ KL_fxn = function(par,p25,p75) {
   # Mean and standard deviation: 
   m = par[1]
   v = par[2]
+  sd = sqrt(v)
   
   # Calculate integrals: 
-  Z1 = pnorm(q=p25,mean=m,sd=v)
-  Z2 = pnorm(q=p75,mean=m,sd=v)-Z1
-  Z3 = 1-pnorm(q=p75,mean=m,sd=v)
+  Z1 = pnorm(q=p25,mean=m,sd=sd)
+  Z2 = pnorm(q=p75,mean=m,sd=sd)-Z1
+  Z3 = 1-pnorm(q=p75,mean=m,sd=sd)
   
   # Calculate Kullback-Leibler for each 'integral':
   KL1 = sum(log(0.25/Z1)*0.25)
@@ -468,39 +463,21 @@ for (i in 1:14) {
   v_vec[i] = nlm_fit$estimate[2]
 }
 
-# m_vec
-# v_vec
-
-# Design matrix:
-X = cbind(1,
-          age,
-          famhist,
-          tobacco)
-
-m = m_vec
-V = diag(v_vec)
-
-mu0_b = solve(t(X)%*%solve(V)%*%X)%*%t(X)%*%solve(V)%*%m
-
-S0_b = solve(t(X)%*%solve(V)%*%X)
-
-cor_mat_b = cov2cor(S0_b)
-
 # Question c:
 # Predictor names: 
 param_names = c('Intercept','age','famhist','tobacco')
 
 # Prior standard deviations: 
-sd_1 = sqrt(diag(S0_a))
-sd_2 = sqrt(diag(S0_b))
+sd_a = sqrt(diag(S0_a))
+sd_b = sqrt(diag(S0_b))
 
 # Prior comparison:
 prior_comparison = data.frame(
   Parameter    = param_names,
   Expert1_Mean = as.numeric(mu0_a),
   Expert2_Mean = as.numeric(mu0_b),
-  Expert1_SD   = sd_1,
-  Expert2_SD   = sd_2
+  Expert1_SD   = sd_a,
+  Expert2_SD   = sd_b
 )
 
 # Display table: 
@@ -567,11 +544,3 @@ plot_data = map_dfr(1:4, function(i) {
 #     strip.text = element_text(face = "bold")
 #   )
 ```
-
-\newpage
-
-A one-unit increase in `age` multiplicatively increases the odds of coronary heart disease by 5.3%. Similarly, a one-unit increase in `tobacco` multiplicatively increases the odds of coronary heart disease by 11.7%. Changing `famhist` from \textit{Absence} to \textit{Presence} multiplies the odds by 2.71. The elicited prior implies a baseline probability of approximately 2%.
-
-The diagonal elements in @tbl-S0 give the marginal variances of the prior regression coefficients. The small values indicate low prior uncertainty.
-
-The correlation matrix dispalyed in @tbl-cor indicate dependence between the regression coefficients. This elicited prior cannot be assumed to represent independent priors for each regression coefficient but rather a joint multivariate distribution.
