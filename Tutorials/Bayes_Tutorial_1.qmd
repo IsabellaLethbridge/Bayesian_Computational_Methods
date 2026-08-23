@@ -515,7 +515,7 @@ rownames(prior_comparison) = param_names
 #   prior_comparison
 # )
 
-# Plot prior distributionsL 
+# Plot prior distributions:  
 mu_E1 = as.vector(mu0_a)
 sd_E1 = sqrt(diag(S0_a))
 mu_E2 = as.vector(mu0_b)
