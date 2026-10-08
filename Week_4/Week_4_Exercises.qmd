@@ -1,0 +1,194 @@
+---
+title: "Bayesian Computational Methods: Week 4"
+author: "Isabella Lethbridge"
+format: html
+editor: visual
+---
+
+# The Gibbs sampler
+
+## Example
+
+```{r}
+# Function to sample from conditional distributions 
+sample_x2 = function(k=10000){
+  # Specify parameters:
+  n     = 16
+  alpha = 2
+  beta  = 10
+  
+  # Initialise:
+  x = NULL
+  y = NULL
+  
+  y[1] = 1
+  x[1] = 0
+  
+  for (i in 2:k){
+    x[i] = rbinom(n=1,size=n,prob=y[i-1])
+    y[i] = rbeta(n=1,shape1=(x[i]+alpha),shape2=(n-x[i]+beta))
+  }
+  
+  return(list(x=x,y=y))
+}
+
+n = 16
+draws = sample_x2(k=100000)
+x_full = draws$x
+y_full = draws$y
+
+xkeep2   = x_full[floor(100000/2):100000]
+ns       = length(xkeep2)
+xprobs_2 = sapply(0:n,function(x){sum((xkeep2==x))/ns})
+```
+
+```{r}
+alpha = 2
+beta_par = 10
+theoretical = sapply(0:n, function(x){
+  choose(n,x)*beta(x+alpha,n-x+beta_par)/beta(alpha,beta_par)
+})
+
+plot(0:n, 
+     theoretical, 
+     type = "l",
+     lwd  = 2,
+     col  = "purple",
+     xlab = "x", 
+     ylab = expression(pi(x)), 
+     main = "Theoretical vs Gibbs.")
+lines(0:n, 
+      xprobs_2, 
+      type = "l",  
+      lty  = 2, 
+      lwd  = 2,
+      col  = "deeppink")
+legend("topright", 
+       legend = c("Theoretical", "Gibbs"),
+       col = c("purple", "deeppink"), 
+       lty = c(1,2), 
+       bty = "n")
+```
+
+### Trace plots
+
+```{r}
+par(mfrow = c(1, 3))
+plot(1:100, y_full[1:100], type = "l", col = "deeppink",
+     xlab = "Iteration", ylab = "y", main = "Iterations 1-100")
+plot(1:500, y_full[1:500], type = "l", col = "deeppink",
+     xlab = "Iteration", ylab = "y", main = "Iterations 1-500")
+plot(25000:50000, y_full[25000:50000], type = "l", col = "deeppink",
+     xlab = "Iteration", ylab = "y", main = "Iterations 25000-50000")
+```
+
+### Density distribution
+
+```{r}
+d100 = density(y_full[1:100])
+d500 = density(y_full[1:500])
+
+hist(y_full, 
+     col = "lightblue", 
+     border = NULL,
+     breaks=50,
+     lwd = 2, 
+     probability = TRUE,
+     main = "Density of y.", 
+     xlab = "y")
+lines(d100, col = "purple", lwd = 2)
+lines(d500, col = "deeppink", lwd = 2)
+legend("topright", legend = c("n=100", "n=500"),
+       col = c("purple", "deeppink"), lwd = 2, bty = "n")
+```
+
+## Question 2
+
+```{r}
+# Function to sample from conditional distributions 
+gibbs_sampler_fxn = function(k=5000){
+  # Specify parameters:
+  p     = 0.5
+  
+  # Initialise:
+  x = NULL
+  y = NULL
+  
+  y[1] = 5
+  x[1] = -5
+  
+  for (i in 2:k){
+    x[i] = rnorm(n=1,p*y[i-1],1-p^2)
+    y[i] = rnorm(n=1,p*x[i],1-p^2)
+  }
+  
+  return(list(x=x,y=y))
+}
+
+p = 0.5
+draws = gibbs_sampler_fxn(k=5000)
+x_full = draws$x
+y_full = draws$y
+
+xkeep    = x_full[floor(5000/2):5000]
+nsamp    = length(xkeep)
+xprobs   = sapply(0:n,function(x){sum((xkeep==x))/nsamp})
+```
+
+### Trace plots
+
+```{r}
+par(mfrow = c(1, 2))
+plot(1:length(x_full), x_full, type = "l", col = "purple",
+     xlab = "Iteration", ylab = "x", main = "Trace: X | Y, p")
+plot(1:length(y_full), y_full, type = "l", col = "deeppink",
+     xlab = "Iteration", ylab = "y", main = "Trace: Y | X, p")
+```
+
+### Density distributions (including burn-in)
+
+```{r}
+par(mfrow = c(1, 2))
+hist(x_full[1:100], 
+     breaks = 30, 
+     freq = FALSE, 
+     col = "purple",
+     xlab = "x", 
+     main = "Histogram: x (first 100)")
+curve(dnorm(x), add = TRUE, lwd = 2, lty = 2)
+
+hist(y_full[1:100], 
+     breaks = 30, 
+     freq = FALSE, 
+     col = "deeppink",
+     xlab = "y", 
+     main = "Histogram: y (first 100)")
+curve(dnorm(x), add = TRUE, lwd = 2, lty = 2)
+```
+
+### Density distributions (excluding burn-in)
+
+```{r}
+keep   = (length(x_full)/2 + 1):length(x_full)  
+x_post = x_full[keep]
+y_post = y_full[keep]
+
+par(mfrow = c(1, 2))
+hist(x_post, 
+     breaks = 30, 
+     freq = FALSE, 
+     col = "purple",
+     xlab = "x", 
+     main = "Histogram: x (post burn-in)")
+curve(dnorm(x), add = TRUE, lwd = 2, lty = 2)
+
+hist(y_post, 
+     breaks = 30, 
+     freq = FALSE, 
+     col = "deeppink",
+     xlab = "y", 
+     main = "Histogram: y (post burn-in)")
+curve(dnorm(x), add = TRUE, lwd = 2, lty = 2)
+```
+
+The histograms after excluding burn-in more closely resemble the distributions.

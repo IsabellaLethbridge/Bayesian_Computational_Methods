@@ -1,0 +1,310 @@
+---
+title: "Bayesian Computational Methods: Week 2"
+date: "23 September 2026"
+author: "Isabella Lethbridge"
+output:
+  html_document:
+    toc: yes
+    toc_float: yes
+    toc_collapsed: yes
+    code_folding: "show"
+    toc_depth: 3
+    number_sections: false
+---
+
+<br>
+
+# Import the data
+
+Import the `caterpillar.txt` file and undertake the following tasks below.
+
+The $X$ variables are:
+
+- $x_1$ altitude  
+- $x_2$ slope (in degrees)  
+- $x_3$ number of pines in the area  
+- $x_4$ height of the central tree  
+- $x_5$ diameter of the central tree  
+- $x_6$ index of the settlement density  
+- $x_7$ orientation of the area (from $1$ [southbound] to $2$)   
+- $x_8$ height of the dominant tree  
+- $x_9$ number of vegetation strata  
+- $x_{10}$ mix settlement index (from $1$ if not mixed to $2$ if mixed)
+
+Note that $x_7$ and $x_{10}$ are indicator variables. 
+
+The response variable is the log transform of the average number of nests of caterpillars per tree in an area of 500 square meters (which corresponds to the last column in caterpillar).
+
+```{r}
+# Set the working directory and put the data in that particular directory: 
+
+require(knitr)
+
+procession = read.table("caterpillar.txt")
+
+y = log(procession$V11) # response variable
+X = as.matrix(cbind(rep(1,33),procession[,1:10])) # design matrix
+colnames(X) = c("int","X1", "X2", "X3", "X4", "X5", "X6", "X7", "X8", "X9", "X10")
+n = length(y)
+k = dim(X)[2]
+```
+
+<br>
+
+# Least squares regression
+
+Plot $y$ against all of the explanatory variables and note any potential explanatory variables that should enter the regression model. 
+
+```{r}
+# require(car)
+# scatterplotMatrix(cbind(y,X[,-1]))
+
+par(mfrow=c(3,4))
+for (i in 1:10){
+  plot(X[,i+1], y, main="", xlab=paste("X",i, sep=""), ylab="Y")
+}
+```
+
+- Perform ordinary least squares regression using the data set. 
+- Obtain the coefficient estimates, standard errors and t-values of the estimates. - Comment on the model. 
+- Store the coefficient and residual variance objects as `betahat` and `sigmahat` respectively.
+
+```{r}
+fit1 = lm(y~X[,-1])
+summary(fit1)
+
+# there are more stable ways of doing this!
+betahat = solve(crossprod(X))%*%t(X)%*%y 
+round(betahat,4)
+
+S2 = t(y-X%*%betahat)%*%(y-X%*%betahat)
+sigma2hat = S2/(n-k)
+round(sigma2hat,4)
+```
+
+<br>
+
+# Conjugate prior distribution
+
+Assume that we use a conjugate prior distribution for $\pmb \beta,\sigma$. Specifically assume that $$
+\pmb \beta|\sigma^2\sim\mathscr{N}_{11}(\pmb 0_{11},\sigma^2 \pmb M^{-1})\,,$$
+where $\pmb M = \frac{1}{c}\pmb I_{11}$ and 
+$$\sigma^2\sim \mathcal{IG}(a,b),\qquad a,b>0.$$
+Set $c=0.1$, $a=2.1$ and $b=2$. Take note that in practice it is difficult to specify the make up of $\pmb M$.
+
+## Marginal posterior mean of $\pmb \beta| \pmb X, \pmb y$
+
+$\pmb \beta \mid \pmb y \sim \mathcal{T}_{k+1}\big(v=2a+n,\pmb \mu=\pmb \mu_{\beta}. \pmb \Sigma^{-1} = \frac{2a+n}{A^{*}_{2}}(\pmb M+\pmb X^T \pmb X)\big)$
+
+Calculate the posterior mean of $\pmb \beta| \pmb X, \pmb y$ and compare it to the least squares estimator when $c$=0.1, 1, 10, 100, 1000 and 10000. **What do you notice?**
+
+```{r}
+# Specify parameters: 
+a = 2.1
+b = 2
+c. = 0.1
+
+# Function to calculate the posterior mean of beta|X,y for a particular c: 
+mu_beta_f = function(c.){
+  M       = diag(11)/c.              # 2x2 identity matrix 
+  Mp.XtX  = M + crossprod(X)         # M + X^TX
+  mu_beta = solve(Mp.XtX)%*%t(X)%*%y # this comes from notes
+  return(mu_beta)
+}
+
+# Calculate mean of beta|X,y for differing c values: 
+means_beta = sapply(c(0.1, 1, 10, 100, 1000, 10000), mu_beta_f)
+col.labels = paste("c = ",c(0.1, 1, 10, 100, 1000, 10000), sep="")
+kable(cbind(means_beta, betahat), col.names = c(col.labels,"OLS"))
+```
+
+```{r, eval=FALSE , echo=FALSE}
+plot(c(0.1, 1, 10, 100, 1000, 10000), means_beta[2,], type="l", ylim=c(min(means_beta[-1,]), max(means_beta[-1,])), xaxt="n", xlab="c")
+axis(side=1, at = c(0.1, 1, 10, 100, 1000, 10000), labels=col.labels)
+
+for (i in 3:11){
+  lines(c(0.1, 1, 10, 100, 1000, 10000), means_beta[i,], col=i)
+}
+
+```
+
+From above it appears as if the value of $c$ can be used to provide a 'weight' to the prior information and the sample information respectively! i.e. As $c$ increases, the posterior mean tends to that of the ordinary least squares solution suggesting that a 'large' value of $c$ would place more 'weight' on the sample data than that of the prior information. **Does this make sense in this context?** 
+
+<br> 
+
+## Marginal posterior mean of $\pmb \sigma^2| \pmb X, \pmb y$
+
+$\sigma^2\mid\pmb y,\pmb X \sim \mathcal{IG} \big( \frac{n}{2}+a,b+\frac{A_2}{2} \big) $
+
+Write a function named `post_var_s2` to calculate the posterior mean of $\sigma^2|\pmb y, \pmb X$ when $c$ = 0.1, 1, 10, 100, 1000 and 10000. Compare these to the variances obtained when using ordinary least squares regression. *What do you notice if anything?* Compare the value of ${\hat{\sigma}}^2$ to that of $E(\sigma^2|\pmb y, \pmb X).$
+
+```{r}
+# Function to calculate the marginal posterior mean of s2: 
+post_var_s2 = function(c.){
+  M       = diag(11)/c.              # 2x2 identity matrix 
+  Mp.XtX  = M + crossprod(X)         # M + X^TX
+  mu_beta = solve(Mp.XtX)%*%t(X)%*%y # from notes 
+  
+  A2 = crossprod(y)-t(mu_beta)%*%Mp.XtX%*%mu_beta
+  
+  (2*b+A2)/(n+2*a-2)
+}
+
+# Calculate the marginal posterior mean of s2 for different c:
+means_var = sapply(c(0.1, 1, 10, 100, 1000, 10000), post_var_s2)
+kable(matrix(c(means_var, sigma2hat), nrow=1), col.names = c(col.labels,"OLS"))
+```
+
+From this we see that $E(\sigma^2| \pmb X, \pmb y)$ changes as $c$ changes. 
+Write a function named 'post_mean_var_beta' to calculate the marginal posterior mean and variance of $\beta_0$ when $c$=0.1, 1, 10, 100, 1000, 10000, 50000 and 100000. (Use the posterior distribution of $\pmb \beta|\pmb y]$.) Comment on what you notice! Do the same for some of the other regression coefficients.
+
+<br> 
+
+## Lets look at $\pmb \beta| \pmb X, \pmb y$ again
+
+Calculate the posterior mean and variance of $\beta_0| \pmb X, \pmb y$. Do the same for a few other explanatory variables. *What do you notice if anything?* 
+```{r}
+post_mean_var_beta = function(c., index){
+  # Calculate the marginal posterior mean and variance covariance
+  # matrix of beta when using the conjugate prior for
+  # beta|sigma2 and sigma2
+  # Below we report the results using the marginal posterior
+  # distribution of beta|y , X
+  # index = 1,2,..., or 11 in this case
+  
+  M        = diag(11)/c.
+  Mp.XtX   = M + crossprod(X)
+  mu_beta  = solve(Mp.XtX)%*%t(X)%*%y #correct!
+  A2       = 2*b+crossprod(y)-t(mu_beta)%*%Mp.XtX%*%mu_beta
+  beta_var = solve(Mp.XtX)*A2[1]/(2*a+n)
+  
+  # The 'Bayesian core':
+  # b_ols    = solve(crossprod(X))%*%t(X)%*%y
+  # s2       = crossprod(y-X%*%b_ols)
+  # t1       = 2*b+s2+t(b_ols)%*%solve(solve(M)+solve(crossprod(X)))%*%b_ols
+  # beta_var = solve(M+crossprod(X))*t1[1]/(n+2*a)
+  # cat("\n A2 book=", 2*b + s2 + t(b_ols)%*%solve(solve(M)+solve(crossprod(X)))%*%b_ols)
+  
+  c(mu_beta[index], beta_var[index, index])
+}
+
+mean_var_beta0 = t(sapply(c(0.1, 1, 10, 100, 1000, 10000), post_mean_var_beta, index=1))
+colnames(mean_var_beta0) = c("mean","var")
+rownames(mean_var_beta0) = c(0.1, 1, 10, 100, 1000, 10000)
+mean_var_beta0
+```
+
+Take note that $$(\pmb y - \pmb X \hat{\pmb \beta})^T (\pmb y - \pmb X \hat{\pmb \beta}) + \hat{\pmb \beta}^T(\pmb M^{-1} + (\pmb X^T \pmb X)^{-1} )^{-1}\hat{\pmb \beta}   = \pmb y^T \pmb y - \pmb \mu_{\pmb \beta}^T (\pmb M + \pmb X^T \pmb X) \pmb \mu_{\pmb \beta}$$
+where $$\pmb \mu_{\pmb \beta} = (\pmb M + \pmb X^T \pmb X)^{-1} \pmb X^T \pmb y.$$
+
+<br> 
+
+# Conclusions
+
+From the above code you should realise that the specification of the prior distribution does matter! The value of $c$ does have a lasting impact on the resulting posterior inference. In future, we will assume that $c$ itself has a prior distribution and thereafter we will marginalise across $c$ to obtain a posterior distribution for $\pmb \beta, \sigma| \pmb y, \pmb X$ that does not depend on $c$.
+
+# Zellner's G-prior
+
+Zellner's G-prior allows the experimenter to introduce information about the location parameter of the regression while bypassing the derivation of the prior correlation structure. We assume the following prior distributions for $\pmb \beta, \sigma^2$: 
+
+$$
+\pmb \beta\mid\sigma^2, \pmb X \sim \mathcal{N}(\tilde{\pmb \beta},c\sigma^2(\pmb X^T\pmb X)^{-1}),
+$$
+
+set $c=0.1$ and
+
+$$
+\pi(\sigma^2) \propto \sigma^{-2}.
+$$
+
+## Marginal posterior mean of $\pmb \beta| \pmb X, \pmb y$
+
+$\pmb \beta \mid \pmb y \sim \mathcal{T}_{k+1}\big(v=2a+n,\pmb \mu=\pmb \mu_{\beta}. \pmb \Sigma^{-1} = \frac{2a+n}{A_{2}}(\pmb M+\pmb X^T \pmb X)\big)$
+
+Calculate the posterior mean of $\pmb \beta| \pmb X, \pmb y$ and compare it to the least squares estimator when $c$=0.1, 1, 10, 100, 1000 and 10000. **What do you notice?**
+
+```{r}
+# Specify parameters: 
+c.     = 0.1
+btilde = rep(0,11) # zero vector 
+
+# Function to calculate the posterior mean of beta|X,y for a particular c: 
+ZGP_mu_beta_f = function(c.){
+  M       = crossprod(X)/c.                          
+  Mp.XtX  = M + crossprod(X)                     
+  mu_beta = solve(Mp.XtX)%*%(t(X)%*%y+M%*%btilde)    # this comes from notes
+  return(mu_beta)
+}
+
+# Calculate mean of beta|X,y for differing c values: 
+means_beta = sapply(c(0.1, 1, 10, 100, 1000, 10000), ZGP_mu_beta_f)
+col.labels = paste("c = ",c(0.1, 1, 10, 100, 1000, 10000), sep="")
+kable(cbind(means_beta, betahat), col.names = c(col.labels,"OLS"))
+```
+
+<br> 
+
+## Marginal posterior mean of $\pmb \sigma^2| \pmb X, \pmb y$
+
+$\sigma^2\mid\pmb y,\pmb X \sim \mathcal{IG} \big( \frac{n}{2}+a,b+\frac{A_2}{2} \big) $
+
+Write a function named `post_var_s2` to calculate the posterior mean of $\sigma^2|\pmb y, \pmb X$ when $c$ = 0.1, 1, 10, 100, 1000 and 10000. Compare these to the variances obtained when using ordinary least squares regression. *What do you notice if anything?* Compare the value of ${\hat{\sigma}}^2$ to that of $E(\sigma^2|\pmb y, \pmb X).$
+
+```{r}
+# Function to calculate the marginal posterior mean of s2: 
+ZGP_post_var_s2 = function(c.){
+  M       = crossprod(X)/c.              
+  Mp.XtX  = M + crossprod(X)         
+  mu_beta = solve(Mp.XtX)%*%(t(X)%*%y+M%*%btilde) # from notes 
+  
+  A2 = crossprod(y)+t(btilde)%*%M%*%btilde-t(mu_beta)%*%Mp.XtX%*%mu_beta
+  
+  (2*b+A2)/(n+2*a-2)
+}
+
+# Calculate the marginal posterior mean of s2 for different c:
+means_var = sapply(c(0.1, 1, 10, 100, 1000, 10000), ZGP_post_var_s2)
+kable(matrix(c(means_var, sigma2hat), nrow=1), col.names = c(col.labels,"OLS"))
+```
+
+From this we see that $E(\sigma^2| \pmb X, \pmb y)$ changes as $c$ changes. 
+Write a function named 'post_mean_var_beta' to calculate the marginal posterior mean and variance of $\beta_0$ when $c$=0.1, 1, 10, 100, 1000, 10000, 50000 and 100000. (Use the posterior distribution of $\pmb \beta|\pmb y]$.) Comment on what you notice! Do the same for some of the other regression coefficients.
+
+<br> 
+
+## Lets look at $\pmb \beta| \pmb X, \pmb y$ again
+
+Calculate the posterior mean and variance of $\beta_0| \pmb X, \pmb y$. Do the same for a few other explanatory variables. *What do you notice if anything?* 
+```{r}
+ZGP_post_mean_var_beta = function(c., index){
+  # Calculate the marginal posterior mean and variance covariance
+  # matrix of beta when using the conjugate prior for
+  # beta|sigma2 and sigma2
+  # Below we report the results using the marginal posterior
+  # distribution of beta|y , X
+  # index = 1,2,..., or 11 in this case
+  
+  M        = crossprod(X)/c.
+  Mp.XtX   = M + crossprod(X)
+  mu_beta  = solve(Mp.XtX)%*%(t(X)%*%y+M%*%btilde) #correct!
+  A2       = 2*b+crossprod(y)+t(btilde)%*%M%*%btilde-t(mu_beta)%*%Mp.XtX%*%mu_beta
+  beta_var = solve(Mp.XtX)*A2[1]/(2*a+n)
+  
+  # The 'Bayesian core':
+  # b_ols    = solve(crossprod(X))%*%t(X)%*%y
+  # s2       = crossprod(y-X%*%b_ols)
+  # t1       = 2*b+s2+t(b_ols)%*%solve(solve(M)+solve(crossprod(X)))%*%b_ols
+  # beta_var = solve(M+crossprod(X))*t1[1]/(n+2*a)
+  # cat("\n A2 book=", 2*b + s2 + t(b_ols)%*%solve(solve(M)+solve(crossprod(X)))%*%b_ols)
+  
+  c(mu_beta[index], beta_var[index, index])
+}
+
+mean_var_beta0 = t(sapply(c(0.1, 1, 10, 100, 1000, 10000), ZGP_post_mean_var_beta, index=1))
+colnames(mean_var_beta0) = c("mean","var")
+rownames(mean_var_beta0) = c(0.1, 1, 10, 100, 1000, 10000)
+mean_var_beta0
+```
+
+Take note that $$(\pmb y - \pmb X \hat{\pmb \beta})^T (\pmb y - \pmb X \hat{\pmb \beta}) + (\hat{\pmb \beta} - \tilde{\pmb \beta})^T(\pmb M^{-1} + (\pmb X^T \pmb X)^{-1} )^{-1}(\hat{\pmb \beta} - \tilde{\pmb \beta})   = \pmb y^T \pmb y +\tilde{\pmb \beta}^T \pmb M \tilde{\pmb \beta}- \pmb \mu_{\pmb \beta}^T (\pmb M + \pmb X^T \pmb X) \pmb \mu_{\pmb \beta}$$
+where $$\pmb \mu_{\pmb \beta} = (\pmb M + \pmb X^T \pmb X)^{-1}(\pmb X^T \pmb y + \pmb M \pmb {\tilde{\beta}}).$$

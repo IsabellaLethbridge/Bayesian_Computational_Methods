@@ -1,0 +1,456 @@
+---
+course: "Bayesian Computational Methods"
+assignment: "Tutorial 2"
+student-number: "LTHISA001"
+format:
+  pdf:
+    colorlinks: true
+    linkcolor: blue
+    urlcolor: blue
+    documentclass: article
+    fontsize: 12pt
+    geometry:
+      - left=2.5cm
+      - right=2.5cm
+      - top=2.5cm
+      - bottom=2.5cm
+    toc: false
+    toc-depth: 3
+    number-sections: false
+    listings: true
+    include-in-header: 
+      - metadata.tex
+      - header.tex
+    include-before-body: title.tex
+execute:
+  warning: false
+  message: false
+editor: visual
+---
+
+## Introduction
+
+In this tutorial we consider Bayesian variable selection in a linear regression problem. We have $n=150$ observations and $k=5$ possible covariates. 
+
+The model is defined as 
+
+$$ 
+\boldsymbol{y}=\boldsymbol{X}_{\gamma} \boldsymbol{\beta}_{\gamma} + e, \qquad \qquad e \sim \mathcal{N}(\boldsymbol{0},\sigma^2 \boldsymbol{I}_n),
+$$ {#eq-mod1}
+
+with the following priors
+
+$$
+\sigma^2 \sim IG(2,2) \qquad \text{and}  \qquad \boldsymbol{\beta}_{\gamma} \sim \mathcal{N}_d(\boldsymbol{0}_d,\sigma^2 \boldsymbol{I}_d).
+$$ {#eq-priors1}
+
+$\boldsymbol{X}_{\gamma}$ is the $n \times d$ design matrix where $\boldsymbol{\gamma}$ is a vector of indicators controlling the inclusion of possible covariates. 
+
+The shrinkage prior is placed on covariates as well as the intercept, so $d = 1+ \sum_j \gamma_j$ not $\sum_j \gamma_j$. 
+
+The intercept is included in every model and each of the possible covariates is assigned an independent Bernoulli($\frac{1}{2}$) prior. This corresponds to a uniform prior over $2^5 = 32$ possible $\boldsymbol{\gamma}$ configurations. Since the number of possible configurations, for this problem, is small they can be evaluated directly but as $k$ increases enumeration becomes infeasible. Direct enumeration serves as a benchmark comparison for the Gibbs sampler implemented in Question a. The Gibbs sampler updates one indicator at a time, comparing the model that includes covariate $j$ to the model that does not, at each step. This results in the cost scaling linearly as opposed to exponentially which is more feasible than direct enumeration for a large number of possible covariates. 
+
+$$
+\pi(\boldsymbol{\gamma} \mid \boldsymbol{y}) \propto [\boldsymbol{y} \mid \boldsymbol{\gamma}] \cdot \pi(\boldsymbol{\gamma})
+$$
+
+Since $\pi(\boldsymbol{\gamma})$ is a uniform prior, the target posterior is proportional to the marginal likelihood, $[\boldsymbol{y} \mid \boldsymbol{\gamma}]$. The posterior distribution is obtained by integrating out $\boldsymbol{\beta}_{\gamma}$ and $\boldsymbol{\sigma^2}$ from the joint density, $[\boldsymbol{y},\boldsymbol{\beta}_{\gamma},\sigma^2 \mid \boldsymbol{\gamma}]$. [see Appendix A] 
+
+## Question a
+
+The Gibbs sampler approximates $[\boldsymbol{\gamma}\mid \boldsymbol{y}]$ by updating one $\gamma_j$ at a time. Each $\gamma_j$ is drawn from its full conditional distribution given the current values of $\boldsymbol{\gamma}_{\backslash j}$. 
+
+For each $\gamma_j$, the full conditional distribution given the remaining covariate indicators, $\boldsymbol{\gamma}_{\backslash j}$, is
+
+$$
+\text{P}(\gamma_j = 1 \mid \boldsymbol{\gamma}_{\backslash j}, \boldsymbol{y}) = \frac{[\boldsymbol{y} \mid \gamma_j=1,\boldsymbol{\gamma}_{\backslash j}]}{[\boldsymbol{y} \mid \gamma_j=1,\boldsymbol{\gamma}_{\backslash j}] + [\boldsymbol{y} \mid \gamma_j=0,\boldsymbol{\gamma}_{\backslash j}]}.
+$$ {#eq-condist}
+
+@eq-condist is evaluated using @eq-ml, derived in Appendix A. This is evaluated on the log-scale, $\gamma_j \sim \text{Bernoulli}(\frac{1}{1+\text{exp}(l_0 - l_1)})$, where $l_0$ and $l_1$ are the log marginal likelihoods for $\gamma_j=0$ and $\gamma_j=1$. This is done to avoid numerical underflow. The terms in @eq-ml that are independent of $\boldsymbol{\gamma}$ cancel out in @eq-condist and thus are dropped when implementing the Gibbs sampler. [see Appendix B]
+
+The Gibbs sampler is run for 8000 iterations with the random seed fixed via `set.seed(123)`. The first 3000 iterations are discarded as burn-in. The sampler is initialised at the intercept only model, $\boldsymbol{\gamma}^{(0)} = [0 0 0 0 0]$. Each iteration of the outer loop produces one $\boldsymbol{\gamma}$ vector. The inner loop iterates through each $\gamma_j$ in $\boldsymbol{\gamma}$ comparing the two configurations, one where $\gamma_j=0$ (covariate $j$ is excluded) and one where $\gamma_j=1$ (covariate $j$ is included). All other covariate indicators are held constant. 
+
+For each configuration $\boldsymbol{X}_{\gamma}, \boldsymbol{\Sigma}, \boldsymbol{\mu} \text{ and } A_2$ are computed and the log marginal likelihoods are calculated, to give @eq-condist. $\gamma_j$ is then drawn from a Bernoulli distribution with this probability, updating $\boldsymbol{\gamma}$, so that the remaining covariate indicators are evaluated based on the newly updated value. After all 5 covariate indicators have been updated the $\boldsymbol{\gamma}$ vector is stored in the output matrix and the next outer loop iteration begins. 
+
+```{r}
+#| echo: false
+#| warning: false
+
+# Load data:
+library(readxl)
+vs2026 = read_excel("vs2026.xlsx")
+# View(vs2026)
+
+# Load required libraries:
+library(ggplot2)
+library(tidyr)
+library(knitr)
+```
+
+```{r}
+#| echo: false
+#| warning: false
+
+# Set seed for reproducibility:
+set.seed(123) 
+
+# Function to sample from conditional distributions (marginal likelihood):
+gibbs_sampler_fxn = function(X,Y,k=8000){
+  n = nrow(X) # no. observations
+  p = ncol(X) # no. x variables 
+  
+  # Initialise:
+  gamma        = matrix(c(NA),nrow=k,ncol=p) # matrix to store gamma vectors
+  gamma[1,1:p] = c(0,0,0,0,0)                # Initialise (0,0,0,0,0)
+  
+  # First for loop loops through different gamma vectors: 
+  for (i in 2:k){
+    gamma_curr = gamma[i-1,]
+    
+    # Second for loop loops through a single gamma vector:  
+    for (j in 1:p){
+      # 0: Xj is excluded
+      # 1: Xj is included
+      gamma0    = gamma_curr
+      gamma1    = gamma_curr
+      gamma0[j] = 0
+      gamma1[j] = 1
+      
+      # Calculate d: 
+      d0 = sum(gamma0)+1 # +1 includes intercept
+      d1 = sum(gamma1)+1
+      
+      # Create design matrices: 
+      X0 = cbind(1,X[,gamma0==1]) 
+      X1 = cbind(1,X[,gamma1==1])
+      
+      Id0 = diag(1,nrow=d0,ncol=d0)
+      Id1 = diag(1,nrow=d1,ncol=d1)
+      
+      Sigma_inv0 = t(X0)%*%X0+Id0
+      Sigma0     = solve(Sigma_inv0)
+      mu0        = Sigma0%*%t(X0)%*%Y
+      A20        = t(Y)%*%Y-t(mu0)%*%Sigma_inv0%*%mu0+4
+     
+      Sigma_inv1 = t(X1)%*%X1+Id1
+      Sigma1     = solve(Sigma_inv1)
+      mu1        = Sigma1%*%t(X1)%*%Y
+      A21        = t(Y)%*%Y-t(mu1)%*%Sigma_inv1%*%mu1+4
+      
+      # Calculate log marginal likelihoods:
+      # Here I remove the terms that cancel out in the ratio:
+            l0 = -0.5*log(det(Sigma_inv0))-(n/2+2)*log(A20/2)
+      l1 = -0.5*log(det(Sigma_inv1))-(n/2+2)*log(A21/2)
+      
+      # Determine ratio of marginal likelihoods: 
+      ratio = 1/(1+exp(l0-l1))
+      
+      # Update gamma vector based on ratio: 
+      draw  = rbinom(1,1,ratio)
+      gamma_curr[j] = draw
+    
+    }
+    gamma[i,] = gamma_curr
+  }
+  return(list(gamma=gamma))
+}
+
+```
+
+```{r}
+#| echo: false
+#| warning: false
+
+# Run MCMC for 8000 iterations:  
+Y = as.matrix(vs2026[,1])
+X = as.matrix(vs2026[,-1])
+n = nrow(X)
+result  = gibbs_sampler_fxn(X,Y,k=8000)
+gamma   = result$gamma
+burn_in = 3000 
+
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| label: fig-trace
+#| fig-cap: "Trace plot of the number of included covariates, burn-in is indicated by the dashed line."
+
+# Trace plot: 
+num_cov  = rowSums(gamma)
+trace_df = data.frame(iteration=seq_along(num_cov),num_cov=num_cov)
+
+# Plot:
+ggplot(data = trace_df,
+       mapping = aes(x=iteration,y=num_cov)) +
+  geom_line() +
+  geom_vline(xintercept=burn_in,color="deeppink",linetype="dashed") +
+  labs(title='Trace plot.',
+       x='Iteration',
+       y='Number of covariates') +
+  theme_minimal()
+
+```
+
+```{r}
+#| echo: false
+#| warning: false
+
+# Posterior summaries from the Gibbs sampler (used again in Question b):
+gamma_post             = gamma[(burn_in+1):nrow(gamma),]
+inclusion_probs        = colMeans(gamma_post)
+names(inclusion_probs) = paste0('X', 1:5)
+
+label_config = function(key) {
+  idx = which(strsplit(as.character(key), "")[[1]] == "1")
+  if (length(idx) == 0) return("Intercept only")
+  paste0("{", paste0("X", idx, collapse = ", "), "}")
+}
+
+config_key_gibbs = apply(gamma_post, 1, paste, collapse = '')
+gibbs_freq       = sort(table(config_key_gibbs) / nrow(gamma_post), decreasing = TRUE)
+top_model_freq   = as.numeric(gibbs_freq[1])
+top_model_label  = label_config(names(gibbs_freq)[1])
+```
+
+@fig-trace shows the trace plot of the number of included covariates for all 8000 iterations. The chain shows no visible trend after the dashed line. Although @fig-trace does not display the specific combination of covariates, the comparison in Question b suggests that the sampler converged to the correct posterior distribution. 
+
+## Question b
+
+The exact posterior distribution can be directly obtained by calculating the marginal likelihood for all 32 possible configurations, normalising and then exponentiating back to the probability scale
+
+$$
+\pi(\boldsymbol{\gamma}\mid\boldsymbol{y}) = \frac{[\boldsymbol{y}\mid\boldsymbol{\gamma}]}{\sum_{\boldsymbol{\gamma}^*\in\{0,1\}^5}[\boldsymbol{y}\mid\boldsymbol{\gamma}^*]}.
+$$ {#eq-exactpost}
+
+@tbl-comparison compares the exact marginal inclusion probabilities to those estimated by the Gibbs sampler in Question a. @tbl-topmodels compares the top four model configurations identified by each method. The Gibbs sampler closely reproduces the exact posterior: the largest absolute difference in marginal inclusion probability is 0.0044 (X2), and both methods identify the same four models as most probable, in the same rank order.
+
+```{r}
+#| echo: false
+#| warning: false
+
+# Extract posterior: 
+all_gammas = as.matrix(expand.grid(rep(list(0:1),5)))
+colnames(all_gammas) = paste0('X',1:5)
+
+log_ml_fxn = function(g,Xmat,Y,n){
+  d         = sum(g)+1
+  Xg        = cbind(1,Xmat[,g==1])
+  Id        = diag(1,nrow=d,ncol=d)
+  Sigma_inv = t(Xg)%*%Xg+Id
+  Sigma     = solve(Sigma_inv)
+  mu        = Sigma%*%t(Xg)%*%Y
+  A2        = as.numeric(t(Y)%*%Y - t(mu)%*%Sigma_inv%*%mu + 4)
+  -0.5*log(det(Sigma_inv)) - (n/2+2)*log(A2/2)
+}
+
+log_m = apply(all_gammas,1,log_ml_fxn,Xmat=X,Y=Y,n=n)
+lse = function(v){ m = max(v); m + log(sum(exp(v-m))) }
+exact_prob = exp(log_m-lse(log_m))
+
+# Exact marginal inclusion probability per variable
+incl_exact = colSums(all_gammas*exact_prob)
+names(incl_exact) = paste0('X',1:5)
+
+```
+
+::: {layout="[45,8,45]"}
+
+```{r}
+#| echo: false
+#| warning: false
+#| label: tbl-comparison
+#| tbl-cap: "Comparison of exact posterior probabilities and Gibbs sampler estimates."
+
+comparison = data.frame(Variable = paste0('X',1:5),
+                         Exact = round(incl_exact,4),
+                         Gibbs = round(inclusion_probs,4),
+                         Difference = round(inclusion_probs - incl_exact,4),
+                         row.names = NULL)
+kable(comparison)
+```
+
+&nbsp;
+
+```{r}
+#| echo: false
+#| warning: false
+#| label: tbl-topmodels
+#| tbl-cap: "Comparison of top 4 model configurations for exact posterior probabilities and Gibbs sampler estimates."
+
+config_key_all = apply(all_gammas, 1, paste, collapse = '')
+exact_df = data.frame(config = config_key_all, Exact = exact_prob)
+gibbs_df = data.frame(config = names(gibbs_freq), Gibbs = as.numeric(gibbs_freq))
+
+top5 = merge(exact_df, gibbs_df, by = "config", all.x = TRUE)
+top5$Gibbs[is.na(top5$Gibbs)] = 0
+top5 = top5[order(-top5$Exact), ][1:4, ]
+top5$Model = sapply(top5$config, label_config)
+
+kable(top5[, c("Model", "Exact", "Gibbs")], digits = 4, row.names = FALSE)
+```
+
+:::
+
+## Question c
+
+The Gibbs sampler and the exact posterior probabilities identify $\{x_1, x_3, x_4\}$ as the optimal model, as seen in @tbl-topmodels. This matches the covariates used to generate the data
+
+$$
+y_i = 2 + x_{1,i} - \frac{3}{2}x_{3,i} + 5x_{4,i} + e_i
+$$
+
+In @tbl-comparison $X1, X3 \text{ and } X4$ have marginal inclusion probabilities equal to 1 for both methods. $X2 \text{ and } X5$ have some small posterior mass due to noise in the data. The posterior distribution places more mass on the covariates used to generate the data as opposed to spreading it uniformly across all 32 configurations. The Gibbs sampler obtains the exact posterior distribution without enumerating every possible model configuration. This highlights that Gibbs sampling can be used for problems where there are many possible covariates and enumeration is infeasible. 
+
+\newpage
+
+## Appendix A - Derivation of the marginal likelihood 
+
+We have
+
+$$ 
+\boldsymbol{y}=\boldsymbol{X}_{\gamma} \boldsymbol{\beta}_{\gamma} + e, \qquad \qquad e \sim \mathcal{N}(\boldsymbol{0},\sigma^2 \boldsymbol{I}_n),
+$$ {#eq-start}
+
+and the following prior distributions
+
+$$
+\sigma^2 \sim IG(2,2) \qquad \text{and}  \qquad \boldsymbol{\beta}_{\gamma} \sim \mathcal{N}_d(\boldsymbol{0}_d,\sigma^2 \boldsymbol{I}_d),
+$$ {#eq-priors}
+
+where $\boldsymbol{X}_{\gamma}$ is the $n \times d$ design matrix and $d = 1+ \sum_j \gamma_j$.
+
+In Bayesian linear regression
+
+$$
+\pi(\boldsymbol{\gamma} \mid \boldsymbol{y}) \propto [\boldsymbol{y} \mid \boldsymbol{\gamma}]. 
+$$ {#eq-propto}
+
+We can write the joint distribution as follows
+
+$$
+[\boldsymbol{y},\boldsymbol{\beta}_{\gamma},\sigma^2 \mid \boldsymbol{\gamma}] = [\boldsymbol{y} \mid\boldsymbol{\beta}_{\gamma},\sigma^2] \cdot [\boldsymbol{\beta}_{\gamma} \mid \sigma^2] \cdot [\sigma^2],
+$$ {#eq-jointdist}
+
+where 
+
+$$
+\pi(\boldsymbol{y} \mid \boldsymbol{\beta}_{\gamma},\sigma^2,\boldsymbol{\gamma}) \sim \mathcal{N}(\boldsymbol{X}_{\gamma} \boldsymbol{\beta}_{\gamma}, \sigma^2\boldsymbol{\text{I}}_n).
+$$ {#eq-joint1}
+
+Substituting in @eq-priors and @eq-joint1 gives
+
+$$
+\begin{aligned}
+= & [(2\pi)^{-\frac{n}{2}} \cdot (\sigma^2)^{-\frac{n}{2}} \cdot \text{exp}(-\frac{1}{2\sigma^2}(\boldsymbol{\text{y}} - \boldsymbol{\text{X}}_{\gamma}\boldsymbol{\beta}_{\gamma})^T \text{I}_n (\boldsymbol{\text{y}} - \boldsymbol{\text{X}}_{\gamma}\boldsymbol{\beta}_{\gamma}))] \\ 
+\cdot &
+[(2\pi)^{-\frac{d}{2}} \cdot (\sigma^2)^{-\frac{d}{2}} \cdot \text{exp}(-\frac{1}{2\sigma^2}\boldsymbol{\beta}_{\gamma}^T \text{I}_d \boldsymbol{\beta}_{\gamma})] \\
+\cdot & 
+[\frac{2^2}{\Gamma{(2)}} \cdot (\sigma^2)^{-(2+1)} \cdot \text{exp}(-\frac{2}{\sigma^2})] \\
+= & (2\pi)^{-\frac{n+d}{2}} \cdot (\sigma^2)^{-(\frac{n+d}{2}+3)} \cdot \text{exp}(-\frac{1}{2\sigma^2}[(\boldsymbol{\text{y}} - \boldsymbol{\text{X}}_{\gamma}\boldsymbol{\beta}_{\gamma})^T (\boldsymbol{\text{y}} - \boldsymbol{\text{X}}_{\gamma}\boldsymbol{\beta}_{\gamma}) + \boldsymbol{\beta}_{\gamma}^T\boldsymbol{\beta}_{\gamma}]) \cdot
+\text{exp}(-\frac{2}{\sigma^2}).
+\end{aligned}
+$$ {#eq-expansion}
+
+Expanding the quadratic term yields
+
+$$
+(\boldsymbol{\text{y}} - \boldsymbol{\text{X}}_{\gamma}\boldsymbol{\beta}_{\gamma})^T (\boldsymbol{\text{y}} - \boldsymbol{\text{X}}_{\gamma}\boldsymbol{\beta}_{\gamma}) + \boldsymbol{\beta}_{\gamma}^T\boldsymbol{\beta}_{\gamma} =
+\boldsymbol{y}^T\boldsymbol{y} - 2\boldsymbol{\beta}_{\gamma}^T\boldsymbol{X}_{\gamma}^T\boldsymbol{y}+\boldsymbol{\beta}_{\gamma}^T\boldsymbol{X}_{\gamma}^T\boldsymbol{X}_{\gamma}\boldsymbol{\beta}_{\gamma} + \boldsymbol{\beta}_{\gamma}^T\boldsymbol{\beta}_{\gamma}.
+$$ {#eq-quadexpand}
+
+\newpage 
+
+To obtain the marginal likelihood $[\boldsymbol{y} \mid \boldsymbol{\gamma}]$ we integrate out w.r.t $\boldsymbol{\beta}_{\gamma}$ and $\sigma^2$
+
+$$
+\begin{aligned} 
+& \int_{{\sigma}^2} \int_{\boldsymbol{\beta}_{\gamma}} 4 \cdot (2\pi)^{-\frac{n+d}{2}} \cdot (\sigma^2)^{-(\frac{n+d}{2}+3)} \cdot  \text{exp}(-\frac{1}{2\sigma^2}[\boldsymbol{y}^T\boldsymbol{y} -2\boldsymbol{\beta}_{\gamma}^T\boldsymbol{X}_{\gamma}^T\boldsymbol{y} + \boldsymbol{\beta}_{\gamma}^T\boldsymbol{X}_{\gamma}^T\boldsymbol{X}_{\gamma}\boldsymbol{\beta}_{\gamma} + \boldsymbol{\beta}_{\gamma}^T\boldsymbol{\beta}_{\gamma} +4]) \hspace{0.1cm} d\boldsymbol{\beta}_{\gamma} \hspace{0.1cm} d\sigma^2 \\
+= & 4 \cdot (2\pi)^{-\frac{n+d}{2}} \int_{{\sigma}^2} (\sigma^2)^{-(\frac{n+d}{2}+3)} \int_{\boldsymbol{\beta}_{\gamma}}  \text{exp}(-\frac{1}{2\sigma^2}[\boldsymbol{y}^T\boldsymbol{y} -2\boldsymbol{\beta}_{\gamma}^T\boldsymbol{X}_{\gamma}^T\boldsymbol{y} + \boldsymbol{\beta}_{\gamma}^T\boldsymbol{X}_{\gamma}^T\boldsymbol{X}_{\gamma}\boldsymbol{\beta}_{\gamma} + \boldsymbol{\beta}_{\gamma}^T\boldsymbol{\beta}_{\gamma} +4]) \hspace{0.1cm} d\boldsymbol{\beta}_{\gamma} \hspace{0.1cm} d\sigma^2
+\end{aligned}
+$$ {#eq-bigintegral}
+
+Isolate the quadratic terms dependent on $\boldsymbol{\beta}_{\gamma}$ and complete the square
+
+$$
+\boldsymbol{\beta}_{\gamma}^T\boldsymbol{X}_{\gamma}^T\boldsymbol{X}_{\gamma}\boldsymbol{\beta}_{\gamma} -2\boldsymbol{\beta}_{\gamma}^T\boldsymbol{X}_{\gamma}^T\boldsymbol{y} + \boldsymbol{\beta}_{\gamma}^T\boldsymbol{\beta}_{\gamma} = 
+\boldsymbol{\beta}_{\gamma}^T(\boldsymbol{X}_{\gamma}^T\boldsymbol{X}_{\gamma} + \text{I}_d)\boldsymbol{\beta}_{\gamma} - 2\boldsymbol{\beta}_{\gamma}^T\boldsymbol{X}_{\gamma}^T\boldsymbol{y}.
+$$ {#eq-Bcompletesquare}
+
+Letting $\boldsymbol{\Sigma}^{-1}=\boldsymbol{X}_{\gamma}^T\boldsymbol{X}_{\gamma} + \text{I}_d \qquad \implies \qquad \boldsymbol{\Sigma}=(\boldsymbol{X}_{\gamma}^T\boldsymbol{X}_{\gamma} + \text{I}_d)^{-1},$
+
+we can define the following as
+
+$$
+\begin{aligned}
+\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu} & = \boldsymbol{X}_{\gamma}^T\boldsymbol{y} \\
+\boldsymbol{\mu} & = \boldsymbol{\Sigma}\boldsymbol{X}_{\gamma}^T\boldsymbol{y} \\
+\end{aligned}.
+$$ {#eq-sigmamu}
+
+Thus we can write
+
+$$
+\boldsymbol{\beta}_{\gamma}^T(\boldsymbol{X}_{\gamma}^T\boldsymbol{X}_{\gamma} + \text{I}_d)\boldsymbol{\beta}_{\gamma} - 2\boldsymbol{\beta}_{\gamma}^T\boldsymbol{X}_{\gamma}^T\boldsymbol{y} 
+ = 
+(\boldsymbol{\beta}_{\gamma}-\boldsymbol{\mu})^T\boldsymbol{\Sigma}^{-1}(\boldsymbol{\beta}_{\gamma}-\boldsymbol{\mu}) - \boldsymbol{\mu}^T\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}
+$$ {#eq-Bcomplete}
+
+Substituting $\boldsymbol{\Sigma}$ and $\boldsymbol{\mu}$ into @eq-bigintegral gives 
+
+$$
+\begin{aligned}
+& 4 \cdot (2\pi)^{-\frac{n+d}{2}} \int_{{\sigma}^2} (\sigma^2)^{-(\frac{n+d}{2}+3)} \cdot \text{exp}(-\frac{1}{2\sigma^2}[\boldsymbol{y}^T\boldsymbol{y} + 4 - \boldsymbol{\mu}^T\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}]) \\
+& \int_{\boldsymbol{\beta}_{\gamma}}  \text{exp}(-\frac{1}{2\sigma^2}[(\boldsymbol{\beta}_{\gamma}-\boldsymbol{\mu})^T\boldsymbol{\Sigma}^{-1}(\boldsymbol{\beta}_{\gamma}-\boldsymbol{\mu})]) \hspace{0.1cm} d\boldsymbol{\beta}_{\gamma} \hspace{0.1cm} d\sigma^2,
+\end{aligned}
+$$ {#eq-propN}
+
+where $\int_{\boldsymbol{\beta}_{\gamma}} \text{exp}(-\frac{1}{2\sigma^2}[(\boldsymbol{\beta}_{\gamma}-\boldsymbol{\mu})^T\boldsymbol{\Sigma}^{-1}(\boldsymbol{\beta}_{\gamma}-\boldsymbol{\mu})]) \hspace{0.1cm} d\boldsymbol{\beta}_{\gamma}$ is proportional to a Gaussian.
+
+$$
+\int_{\boldsymbol{\beta}_{\gamma}} \text{exp}(-\frac{1}{2\sigma^2}[(\boldsymbol{\beta}_{\gamma}-\boldsymbol{\mu})^T\boldsymbol{\Sigma}^{-1}(\boldsymbol{\beta}_{\gamma}-\boldsymbol{\mu})]) \hspace{0.1cm} d\boldsymbol{\beta}_{\gamma} = (2\pi)^{\frac{d}{2}} \mid \Sigma \mid ^{\frac{1}{2}}
+$$ {#eq-N}
+
+This simplifies the marginal likelihood to
+
+$$
+\begin{aligned}
+& 4 \cdot (2\pi)^{-\frac{n+d}{2}} \int_{{\sigma}^2} (\sigma^2)^{-(\frac{n+d}{2}+3)} \cdot \text{exp}(-\frac{1}{2\sigma^2}[\boldsymbol{y}^T\boldsymbol{y} + 4 - \boldsymbol{\mu}^T\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}])
+\cdot (2\pi)^{\frac{d}{2}} \cdot (\sigma^2)^{\frac{d}{2}} \cdot \mid \boldsymbol{\Sigma}\mid^{\frac{1}{2}}d\sigma^2 \\
+= & 4 \cdot(2\pi)^{-\frac{n}{2}} \cdot \mid \boldsymbol{\Sigma}\mid^{\frac{1}{2}} \int_{{\sigma}^2} (\sigma^2)^{-(\frac{n}{2}+3)} \cdot \text{exp}(-\frac{1}{2\sigma^2}[\boldsymbol{y}^T\boldsymbol{y} + 4 - \boldsymbol{\mu}^T\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}]) \hspace{0.1cm} d\sigma^2,
+\end{aligned}
+$$ {#eq-Bsimplify}
+
+where $\int_{{\sigma}^2} (\sigma^2)^{-(\frac{n}{2}+3)} \cdot \text{exp}(-\frac{1}{2\sigma^2}[\boldsymbol{y}^T\boldsymbol{y} + 4 - \boldsymbol{\mu}^T\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}]) \hspace{0.1cm} d\sigma^2$ is proportional to an Inverse Gamma.
+
+$$
+\int_{{\sigma}^2} (\sigma^2)^{-(\frac{n}{2}+3)} \cdot \text{exp}(-\frac{1}{2\sigma^2}[\boldsymbol{y}^T\boldsymbol{y} + 4 - \boldsymbol{\mu}^T\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}]) \hspace{0.1cm} d\sigma^2 = \Gamma(\frac{n}{2} +2) (\frac{\boldsymbol{y}^T\boldsymbol{y} + 4 - \boldsymbol{\mu}^T\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}}{2})^{-(\frac{n}{2}+2)}
+$$ {#eq-IG}
+
+Let $\text{A}_2 = \boldsymbol{y}^T\boldsymbol{y} + 4 - \boldsymbol{\mu}^T\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}$ and substitute into @eq-Bsimplify
+
+$$
+[\boldsymbol{y} \mid \boldsymbol{\gamma}] = 4 \cdot (2\pi)^{-\frac{n}{2}} \cdot \mid \boldsymbol{\Sigma}\mid^{\frac{1}{2}} \cdot (\frac{\text{A}_2}{2})^{-(\frac{n}{2}+2)} \cdot \Gamma{(\frac{n}{2}+2)}
+$$ {#eq-sigmasimplify}
+
+Thus, the marginal likelihood can we written as
+
+$$
+[\boldsymbol{y} \mid \boldsymbol{\gamma}] =  4 \cdot (2\pi)^{-\frac{n}{2}} \cdot \mid \boldsymbol{X}_{\gamma}^T\boldsymbol{X}_{\gamma} + \text{I}_d\mid^{-\frac{1}{2}} \cdot (\frac{\text{A}_2}{2})^{-(\frac{n}{2}+2)} \cdot \Gamma{(\frac{n}{2}+2)}
+$$ {#eq-ml}
+
+Substituting in $n=150$ into @eq-ml yields
+
+$$
+[\boldsymbol{y} \mid \boldsymbol{\gamma}] =  4 \cdot (2\pi)^{-75} \cdot \mid \boldsymbol{X}_{\gamma}^T\boldsymbol{X}_{\gamma} + \text{I}_d\mid^{-\frac{1}{2}} \cdot (\frac{\text{A}_2}{2})^{-77} \cdot 76!
+$$ {#eq-final}
+
+\newpage 
+
+## Appendix B - Code 
+
+```{r ref.label=knitr::all_labels(),echo=TRUE,eval=FALSE}
+
+```
+
