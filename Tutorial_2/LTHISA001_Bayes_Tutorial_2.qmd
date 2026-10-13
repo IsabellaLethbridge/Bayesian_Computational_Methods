@@ -30,9 +30,9 @@ editor: visual
 
 ## Introduction
 
-In this tutorial we consider Bayesian variable selection in a linear regression problem. We have $n=150$ observations and $k=5$ possible covariates. 
+In this tutorial we consider Bayesian variable selection in a linear regression problem. We have $n=150$ observations and $k=5$ possible covariates.
 
-The model is defined as 
+The model is defined as
 
 $$ 
 \boldsymbol{y}=\boldsymbol{X}_{\gamma} \boldsymbol{\beta}_{\gamma} + e, \qquad \qquad e \sim \mathcal{N}(\boldsymbol{0},\sigma^2 \boldsymbol{I}_n),
@@ -44,21 +44,21 @@ $$
 \sigma^2 \sim IG(2,2) \qquad \text{and}  \qquad \boldsymbol{\beta}_{\gamma} \sim \mathcal{N}_d(\boldsymbol{0}_d,\sigma^2 \boldsymbol{I}_d).
 $$ {#eq-priors1}
 
-$\boldsymbol{X}_{\gamma}$ is the $n \times d$ design matrix where $\boldsymbol{\gamma}$ is a vector of indicators controlling the inclusion of possible covariates. 
+$\boldsymbol{X}_{\gamma}$ is the $n \times d$ design matrix where $\boldsymbol{\gamma}$ is a vector of indicators controlling the inclusion of possible covariates.
 
-The shrinkage prior is placed on covariates as well as the intercept, so $d = 1+ \sum_j \gamma_j$ not $\sum_j \gamma_j$. 
+The shrinkage prior is placed on covariates as well as the intercept, so $d = 1+ \sum_j \gamma_j$ not $\sum_j \gamma_j$.
 
-The intercept is included in every model and each of the possible covariates is assigned an independent Bernoulli($\frac{1}{2}$) prior. This corresponds to a uniform prior over $2^5 = 32$ possible $\boldsymbol{\gamma}$ configurations. Since the number of possible configurations, for this problem, is small they can be evaluated directly but as $k$ increases enumeration becomes infeasible. Direct enumeration serves as a benchmark comparison for the Gibbs sampler implemented in Question a. The Gibbs sampler updates one indicator at a time, comparing the model that includes covariate $j$ to the model that does not, at each step. This results in the cost scaling linearly as opposed to exponentially which is more feasible than direct enumeration for a large number of possible covariates. 
+The intercept is included in every model and each of the possible covariates is assigned an independent Bernoulli($\frac{1}{2}$) prior. This corresponds to a uniform prior over $2^5 = 32$ possible $\boldsymbol{\gamma}$ configurations. Since the number of possible configurations, for this problem, is small they can be evaluated directly but as $k$ increases enumeration becomes infeasible. Direct enumeration serves as a benchmark comparison for the Gibbs sampler implemented in Question a. The Gibbs sampler updates one indicator at a time, comparing the model that includes covariate $j$ to the model that does not, at each step. This results in the cost scaling linearly as opposed to exponentially which is more feasible than direct enumeration for a large number of possible covariates.
 
 $$
 \pi(\boldsymbol{\gamma} \mid \boldsymbol{y}) \propto [\boldsymbol{y} \mid \boldsymbol{\gamma}] \cdot \pi(\boldsymbol{\gamma})
 $$
 
-Since $\pi(\boldsymbol{\gamma})$ is a uniform prior, the target posterior is proportional to the marginal likelihood, $[\boldsymbol{y} \mid \boldsymbol{\gamma}]$. The posterior distribution is obtained by integrating out $\boldsymbol{\beta}_{\gamma}$ and $\boldsymbol{\sigma^2}$ from the joint density, $[\boldsymbol{y},\boldsymbol{\beta}_{\gamma},\sigma^2 \mid \boldsymbol{\gamma}]$. [see Appendix A] 
+Since $\pi(\boldsymbol{\gamma})$ is a uniform prior, the target posterior is proportional to the marginal likelihood, $[\boldsymbol{y} \mid \boldsymbol{\gamma}]$. The posterior distribution is obtained by integrating out $\boldsymbol{\beta}_{\gamma}$ and $\boldsymbol{\sigma^2}$ from the joint density, $[\boldsymbol{y},\boldsymbol{\beta}_{\gamma},\sigma^2 \mid \boldsymbol{\gamma}]$. \[see Appendix A\]
 
 ## Question a
 
-The Gibbs sampler approximates $[\boldsymbol{\gamma}\mid \boldsymbol{y}]$ by updating one $\gamma_j$ at a time. Each $\gamma_j$ is drawn from its full conditional distribution given the current values of $\boldsymbol{\gamma}_{\backslash j}$. 
+The Gibbs sampler approximates $[\boldsymbol{\gamma}\mid \boldsymbol{y}]$ by updating one $\gamma_j$ at a time. Each $\gamma_j$ is drawn from its full conditional distribution given the current values of $\boldsymbol{\gamma}_{\backslash j}$.
 
 For each $\gamma_j$, the full conditional distribution given the remaining covariate indicators, $\boldsymbol{\gamma}_{\backslash j}$, is
 
@@ -66,11 +66,11 @@ $$
 \text{P}(\gamma_j = 1 \mid \boldsymbol{\gamma}_{\backslash j}, \boldsymbol{y}) = \frac{[\boldsymbol{y} \mid \gamma_j=1,\boldsymbol{\gamma}_{\backslash j}]}{[\boldsymbol{y} \mid \gamma_j=1,\boldsymbol{\gamma}_{\backslash j}] + [\boldsymbol{y} \mid \gamma_j=0,\boldsymbol{\gamma}_{\backslash j}]}.
 $$ {#eq-condist}
 
-@eq-condist is evaluated using @eq-ml, derived in Appendix A. This is evaluated on the log-scale, $\gamma_j \sim \text{Bernoulli}(\frac{1}{1+\text{exp}(l_0 - l_1)})$, where $l_0$ and $l_1$ are the log marginal likelihoods for $\gamma_j=0$ and $\gamma_j=1$. This is done to avoid numerical underflow. The terms in @eq-ml that are independent of $\boldsymbol{\gamma}$ cancel out in @eq-condist and thus are dropped when implementing the Gibbs sampler. [see Appendix B]
+@eq-condist is evaluated using @eq-ml, derived in Appendix A. This is evaluated on the log-scale, $\gamma_j \sim \text{Bernoulli}(\frac{1}{1+\text{exp}(l_0 - l_1)})$, where $l_0$ and $l_1$ are the log marginal likelihoods for $\gamma_j=0$ and $\gamma_j=1$. This is done to avoid numerical underflow. The terms in @eq-ml that are independent of $\boldsymbol{\gamma}$ cancel out in @eq-condist and thus are dropped when implementing the Gibbs sampler. \[see Appendix B\]
 
-The Gibbs sampler is run for 8000 iterations with the random seed fixed via `set.seed(123)`. The first 3000 iterations are discarded as burn-in. The sampler is initialised at the intercept only model, $\boldsymbol{\gamma}^{(0)} = [0 0 0 0 0]$. Each iteration of the outer loop produces one $\boldsymbol{\gamma}$ vector. The inner loop iterates through each $\gamma_j$ in $\boldsymbol{\gamma}$ comparing the two configurations, one where $\gamma_j=0$ (covariate $j$ is excluded) and one where $\gamma_j=1$ (covariate $j$ is included). All other covariate indicators are held constant. 
+The Gibbs sampler is run for 8000 iterations with the random seed fixed via `set.seed(123)`. The first 3000 iterations are discarded as burn-in. The sampler is initialised at the intercept only model, $\boldsymbol{\gamma}^{(0)} = [0 0 0 0 0]$. Each iteration of the outer loop produces one $\boldsymbol{\gamma}$ vector. The inner loop iterates through each $\gamma_j$ in $\boldsymbol{\gamma}$ comparing the two configurations, one where $\gamma_j=0$ (covariate $j$ is excluded) and one where $\gamma_j=1$ (covariate $j$ is included). All other covariate indicators are held constant.
 
-For each configuration $\boldsymbol{X}_{\gamma}, \boldsymbol{\Sigma}, \boldsymbol{\mu} \text{ and } A_2$ are computed and the log marginal likelihoods are calculated, to give @eq-condist. $\gamma_j$ is then drawn from a Bernoulli distribution with this probability, updating $\boldsymbol{\gamma}$, so that the remaining covariate indicators are evaluated based on the newly updated value. After all 5 covariate indicators have been updated the $\boldsymbol{\gamma}$ vector is stored in the output matrix and the next outer loop iteration begins. 
+For each configuration $\boldsymbol{X}_{\gamma}, \boldsymbol{\Sigma}, \boldsymbol{\mu} \text{ and } A_2$ are computed and the log marginal likelihoods are calculated, to give @eq-condist. $\gamma_j$ is then drawn from a Bernoulli distribution with this probability, updating $\boldsymbol{\gamma}$, so that the remaining covariate indicators are evaluated based on the newly updated value. After all 5 covariate indicators have been updated the $\boldsymbol{\gamma}$ vector is stored in the output matrix and the next outer loop iteration begins.
 
 ```{r}
 #| echo: false
@@ -214,7 +214,7 @@ top_model_freq   = as.numeric(gibbs_freq[1])
 top_model_label  = label_config(names(gibbs_freq)[1])
 ```
 
-@fig-trace shows the trace plot of the number of included covariates for all 8000 iterations. The chain shows no visible trend after the dashed line. Although @fig-trace does not display the specific combination of covariates, the comparison in Question b suggests that the sampler converged to the correct posterior distribution. 
+@fig-trace shows the trace plot of the number of included covariates for all 8000 iterations. The chain shows no visible trend after the dashed line. Although @fig-trace does not display the specific combination of covariates, the comparison in Question b suggests that the sampler converged to the correct posterior distribution.
 
 ## Question b
 
@@ -256,7 +256,6 @@ names(incl_exact) = paste0('X',1:5)
 ```
 
 ::: {layout="[45,8,45]"}
-
 ```{r}
 #| echo: false
 #| warning: false
@@ -271,7 +270,7 @@ comparison = data.frame(Variable = paste0('X',1:5),
 kable(comparison)
 ```
 
-&nbsp;
+ 
 
 ```{r}
 #| echo: false
@@ -290,7 +289,6 @@ top5$Model = sapply(top5$config, label_config)
 
 kable(top5[, c("Model", "Exact", "Gibbs")], digits = 4, row.names = FALSE)
 ```
-
 :::
 
 ## Question c
@@ -301,11 +299,11 @@ $$
 y_i = 2 + x_{1,i} - \frac{3}{2}x_{3,i} + 5x_{4,i} + e_i
 $$
 
-In @tbl-comparison $X1, X3 \text{ and } X4$ have marginal inclusion probabilities equal to 1 for both methods. $X2 \text{ and } X5$ have some small posterior mass due to noise in the data. The posterior distribution places more mass on the covariates used to generate the data as opposed to spreading it uniformly across all 32 configurations. The Gibbs sampler obtains the exact posterior distribution without enumerating every possible model configuration. This highlights that Gibbs sampling can be used for problems where there are many possible covariates and enumeration is infeasible. 
+In @tbl-comparison $X1, X3 \text{ and } X4$ have marginal inclusion probabilities equal to 1 for both methods. $X2 \text{ and } X5$ have some small posterior mass due to noise in the data. The posterior distribution places more mass on the covariates used to generate the data as opposed to spreading it uniformly across all 32 configurations. The Gibbs sampler obtains the exact posterior distribution without enumerating every possible model configuration. This highlights that Gibbs sampling can be used for problems where there are many possible covariates and enumeration is infeasible.
 
 \newpage
 
-## Appendix A - Derivation of the marginal likelihood 
+## Appendix A - Derivation of the marginal likelihood
 
 We have
 
@@ -333,7 +331,7 @@ $$
 [\boldsymbol{y},\boldsymbol{\beta}_{\gamma},\sigma^2 \mid \boldsymbol{\gamma}] = [\boldsymbol{y} \mid\boldsymbol{\beta}_{\gamma},\sigma^2] \cdot [\boldsymbol{\beta}_{\gamma} \mid \sigma^2] \cdot [\sigma^2],
 $$ {#eq-jointdist}
 
-where 
+where
 
 $$
 \pi(\boldsymbol{y} \mid \boldsymbol{\beta}_{\gamma},\sigma^2,\boldsymbol{\gamma}) \sim \mathcal{N}(\boldsymbol{X}_{\gamma} \boldsymbol{\beta}_{\gamma}, \sigma^2\boldsymbol{\text{I}}_n).
@@ -360,7 +358,7 @@ $$
 \boldsymbol{y}^T\boldsymbol{y} - 2\boldsymbol{\beta}_{\gamma}^T\boldsymbol{X}_{\gamma}^T\boldsymbol{y}+\boldsymbol{\beta}_{\gamma}^T\boldsymbol{X}_{\gamma}^T\boldsymbol{X}_{\gamma}\boldsymbol{\beta}_{\gamma} + \boldsymbol{\beta}_{\gamma}^T\boldsymbol{\beta}_{\gamma}.
 $$ {#eq-quadexpand}
 
-\newpage 
+\newpage
 
 To obtain the marginal likelihood $[\boldsymbol{y} \mid \boldsymbol{\gamma}]$ we integrate out w.r.t $\boldsymbol{\beta}_{\gamma}$ and $\sigma^2$
 
@@ -397,7 +395,7 @@ $$
 (\boldsymbol{\beta}_{\gamma}-\boldsymbol{\mu})^T\boldsymbol{\Sigma}^{-1}(\boldsymbol{\beta}_{\gamma}-\boldsymbol{\mu}) - \boldsymbol{\mu}^T\boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}
 $$ {#eq-Bcomplete}
 
-Substituting $\boldsymbol{\Sigma}$ and $\boldsymbol{\mu}$ into @eq-bigintegral gives 
+Substituting $\boldsymbol{\Sigma}$ and $\boldsymbol{\mu}$ into @eq-bigintegral gives
 
 $$
 \begin{aligned}
@@ -446,11 +444,10 @@ $$
 [\boldsymbol{y} \mid \boldsymbol{\gamma}] =  4 \cdot (2\pi)^{-75} \cdot \mid \boldsymbol{X}_{\gamma}^T\boldsymbol{X}_{\gamma} + \text{I}_d\mid^{-\frac{1}{2}} \cdot (\frac{\text{A}_2}{2})^{-77} \cdot 76!
 $$ {#eq-final}
 
-\newpage 
+\newpage
 
-## Appendix B - Code 
+## Appendix B - Code
 
 ```{r ref.label=knitr::all_labels(),echo=TRUE,eval=FALSE}
 
 ```
-

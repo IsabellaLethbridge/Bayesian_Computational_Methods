@@ -1,0 +1,312 @@
+---
+course: "Bayesian Computational Methods"
+assignment: "Assignment"
+student-number: "LTHISA001"
+format:
+  pdf:
+    colorlinks: true
+    linkcolor: blue
+    urlcolor: blue
+    documentclass: article
+    fontsize: 12pt
+    geometry:
+      - left=2.5cm
+      - right=2.5cm
+      - top=2.5cm
+      - bottom=2.5cm
+    toc: false
+    toc-depth: 3
+    number-sections: false
+    listings: true
+    include-in-header: 
+      - metadata.tex
+      - header.tex
+    include-before-body: title.tex
+execute:
+  warning: false
+  message: false
+editor: visual
+---
+
+## Introduction
+
+## Question a
+
+We can write the probability that $s_i=3$ as 
+
+$$
+P(t_i) = Pr(T_i > t_i) = \int^{\infty}_{t_i} \frac{1}{\sqrt{2 \pi} \sigma} \text{exp} \big( -\frac{1}{2\sigma^2} (x - \mu)^2\big) dx.
+$$
+
+This can be written in terms of $\Phi$ after standardising 
+
+$$
+P(t_i) = Pr(\frac{T_i-\mu}{\sigma} > \frac{t_i-\mu}{\sigma}) = 1 - \Phi(\frac{t_i-\mu}{\sigma}).
+$$
+
+The probability that $s_i=2$ is denoted as 
+
+$$
+Q(t_i) = Pr(t_i - \tau \leq T_i \leq t_i) = \int^{t_i}_{t_i - \tau} \frac{1}{\sqrt{2 \pi} \sigma} \text{exp} \big( -\frac{1}{2\sigma^2} (x - \mu)^2\big) dx.
+$$
+
+This can be written in terms of $\Phi$ after standardising 
+
+$$
+Q(t_i) = Pr(\frac{t_i - \tau - \mu}{\sigma} \leq\frac{T_i-\mu}{\sigma} \leq \frac{t_i-\mu}{\sigma}) = \Phi(\frac{t_i-\mu}{\sigma}) - \Phi(\frac{t_i -\tau - \mu}{\sigma}).
+$$
+
+The probability that $s_i=1$ is denoted as 
+
+$$
+R(t_i) = Pr(T_i \leq t_i - \tau) = \int^{t_i - \tau}_{- \infty} \frac{1}{\sqrt{2 \pi} \sigma} \text{exp} \big( -\frac{1}{2\sigma^2} (x - \mu)^2\big) dx.
+$$
+
+This can be written in terms of $\Phi$ after standardising 
+
+$$
+R(t_i) = Pr(\frac{T_i-\mu}{\sigma} \leq \frac{t_i-\tau-\mu}{\sigma}) = \Phi(\frac{t_i-\tau-\mu}{\sigma}).
+$$ 
+
+We now have 
+
+$$
+L(\boldsymbol{s}, \boldsymbol{t}, \mu, \sigma^2, \tau) = \prod^{n}_{i=1} [1 - \Phi(\frac{t_i-\mu}{\sigma})]^{\text{I}(s_i=3)} \cdot [\Phi(\frac{t_i-\mu}{\sigma}) - \Phi(\frac{t_i -\tau - \mu}{\sigma})]^{\text{I}(s_i=2)} \cdot [\Phi(\frac{t_i-\tau-\mu}{\sigma})]^{\text{I}(s_i=1)}.
+$$
+
+## Question b
+
+Conditional posterior distributions to iteratively sample from using a Gibbs sampler: 
+
+$$
+\begin{aligned}
+T_i \mid \mu,\sigma^2,\tau,s_i =1, \quad t_i & \sim \text{N}(\mu, \sigma^2) I_{\{T_i \leq t_i - \tau \}} \forall i \\
+T_i \mid \mu,\sigma^2,\tau,s_i =2, \quad t_i & \sim \text{N}(\mu, \sigma^2) I_{\{t_i-\tau \leq T_i \leq t_i \}} \forall i \\
+T_i \mid \mu,\sigma^2,\tau,s_i =3, \quad t_i & \sim \text{N}(\mu, \sigma^2) I_{\{T_i > t_i \}} \forall i \\
+\mu \mid \sigma^2,\tau, \boldsymbol{s} , \boldsymbol{t} , \boldsymbol{T} & \sim \text{N} \big(\bar{T}, \frac{\sigma^2}{n} \big) I_{\{100 \leq \mu \leq 160 \}} \\
+\sigma^2 \mid \mu, \tau, \boldsymbol{s}, \boldsymbol{t}, \boldsymbol{T} & \sim \text{IG} \big( \frac{n}{2}, \frac{1}{2} \sum^n_{i=1} (T_i - \mu)^2 \big) \\
+\tau \mid . & \sim \text{Unif}(\tau \in V)
+\end{aligned}
+$$
+
+where $\text{V} = [50,180] \cap [l,h]$
+
+Under the Type 2 model, one has observed the moult scores for the birds undergoing moult. Fot those birds the probability density function of the moult score are 
+
+$$
+f_y(y) = \tau f_T(t-y\tau) \qquad 0<y<1. 
+$$ 
+
+After observing the moult scores when $s_i=2$ we need to update the conditional distributions. Only $T_i \mid \mu,\sigma^2,\tau,s_i =2, \quad t_i  \sim \text{N}(\mu, \sigma^2) I_{\{t_i-\tau \leq T_i \leq t_i \}} \forall i$ and $\tau \mid . \sim \text{Unif}(\tau \in V)$ change.
+
+We know that $T_i = t_i-y_i \cdot \tau$. 
+
+We can write the probability density function (ref eq here) as (for a single obervation)
+
+$$
+\begin{aligned}
+f_y(y) & = \tau \cdot \frac{1}{\sqrt{2\pi}\sigma} \text{exp}\big(-\frac{1}{2\sigma^2}(t-y\cdot \tau-\mu)^2\big) \\
+& = \tau \cdot \frac{1}{\sqrt{2\pi}\sigma} \text{exp}\big(-\frac{1}{2\sigma^2}(t^2 - 2ty \tau + (y\tau)^2 - 2\mu t + 2\mu y \tau +\mu^2\big) \\
+& \propto \tau \cdot \text{exp}\big(-\frac{1}{2\sigma^2}((y\tau)^2 -2y\tau(t-\mu))\big) \\
+& \propto \tau \cdot \text{exp} \big( -\frac{y^2}{2\sigma^2} \tau^2 + \frac{y(t-\mu)}{\sigma^2}\tau\big)
+\end{aligned}
+$$
+
+The writing it as a likelihood (remember $t_i$ changes for each $i$)
+
+$$
+\begin{aligned}
+& \prod^m_{i=1} \tau \cdot \text{exp} \big( -\frac{y_i^2}{2\sigma^2} \tau^2 + \frac{y_i(t_i-\mu)}{\sigma^2}\tau\big) \\
+= & \tau^m \cdot \text{exp}\big(-(\frac{1}{2\sigma^2} \sum^m_{i=1} y_i^2)\tau^2 + (\frac{1}{\sigma^2} \sum^m_{i=1} y_i(t_i-\mu))\tau\big)
+\end{aligned}
+$$
+
+According to Lemma 5 of Sun et al. (2021)
+
+$$
+\text{Let } X \sim \text{MHN}(\alpha, \beta, \gamma)
+$$
+
+a.  If $\gamma>0$ then there exists a random variable $V$ such that $V\mid X \sim \text{Poisson}(\gamma X)$ and $X^2 \mid V \sim \text{Gamma}(\frac{\alpha +V}{2}, \beta)$.
+
+b.  If $\gamma<0$ then there exists a random variable $U$ such that $U\mid X \sim \text{GIG}(\frac{1}{2},1,\gamma^2 X^2)$ and $X^2 \mid U \sim \text{Gamma}(\frac{\alpha}{2}, (\beta + \frac{\gamma^2}{U})$.
+
+The PDF for the modified half normal is 
+
+$$
+\begin{aligned}
+f(x\mid \alpha, \beta, \gamma) & = \dfrac{2 \beta^{\alpha/2} x^{\alpha-1} \text{exp}(-\beta x^2 + \gamma x)}{\Psi [\frac{\alpha}{2}, \frac{\gamma}{\sqrt{\beta}}]} \\
+& \propto x^{\alpha-1} \text{exp}(-\beta x^2 + \gamma x) 
+\end{aligned}
+$$
+
+From (ref eq here) we have $\alpha = m+1$, $\beta = \frac{1}{2\sigma^2} \sum^m_{i=1} y_i^2$ and $\gamma = \frac{1}{\sigma^2} \sum^m_{i=1} y_i(t_i-\mu)$. 
+
+We can now write the distribution for $\tau$ as (Notation is getting a bit confusing here as we now have 2 V's)
+
+$$
+\tau \sim \text{MHN}\big(\alpha = m+1, \beta = \frac{1}{2\sigma^2} \sum^m_{i=1} y_i^2, \gamma = \frac{1}{\sigma^2} \sum^m_{i=1} y_i(t_i-\mu)\big) \cdot I_{\{\tau \in \text{V}\}}.
+$$
+
+From $s_i=1$ we have 
+
+$$
+\begin{aligned}
+T_i & \leq t_i - \tau \\
+\tau & \leq t_i - T_i
+\end{aligned}
+$$
+
+Since $t_i$ changes for every $i$ we have the upper bound $h = \text{min}(t_i -T_i) \forall i$. (I'm not sure if this is the most elegant way of writing this but we can fix it later). 
+
+For $s_i = 3$ we have 
+
+$$
+\begin{aligned}
+t_i - \tau & \leq T_i \leq t_i \\
+\tau & \geq t_i - T_i \geq 0 \\
+\tau & \geq t_i - (t_i - y_i \tau) \\
+\tau & \geq y_i\tau
+\end{aligned}
+$$
+
+Since $0<y_i<1$ and $\tau>0$, this is always true.
+
+Thus $\text{V} = [50,min(180,h)]$ and $\tau \in [50^2, \text{min}(100,h)^2]$.
+
+We now consider case (a): $\gamma > 0$ 
+
+Let $m$ be the number of birds with $s_i=2$ (the moutling birds). 
+
+$$
+\begin{aligned}
+\gamma = \frac{1}{\sigma^2} \sum^m_{i=1} y_i(t_i-\mu) & > 0 \\
+\sum^m_{i=1} y_i(t_i-\mu) & > 0
+\end{aligned}
+$$ 
+
+$$
+\begin{aligned}
+V \mid \tau & \sim \text{Poisson}(\gamma \cdot \tau) \\
+& = \text{Poisson}\big(\frac{\tau}{\sigma^2} \sum^m_{i=1} y_i(t_i-\mu)\big)
+\end{aligned}
+$$
+
+$$
+\tau^2 \mid V \sim \text{Gamma}\big(\frac{m+1+V}{2},\frac{1}{2\sigma^2} \sum^m_{i=1} y_i^2\big)
+$$
+
+Next consider case (b): $\gamma < 0$ 
+
+$$
+\begin{aligned}
+\gamma = \frac{1}{\sigma^2} \sum^m_{i=1} y_i(t_i-\mu) & < 0 \\
+\sum^m_{i=1} y_i(t_i-\mu) & < 0
+\end{aligned}
+$$
+
+$$
+U \mid \tau \sim \text{GIG}\big(\frac{1}{2},1,(\frac{\tau}{\sigma^2} \sum^m_{i=1} y_i(t_i-\mu))^2\big)
+$$
+
+$$
+\tau^2 \mid U \sim \text{Gamma}\big(\frac{m+1}{2}, (\frac{1}{2\sigma^2} \sum^m_{i=1} y_i^2 + \frac{1}{U}\cdot(\frac{1}{\sigma^2} \sum^m_{i=1} y_i(t_i-\mu))^2)\big)
+$$
+
+Now that we have all these lovely distributions we actually need to do this data augmentation shit
+
+**We must check the parameterisation of the Gamma dist**
+
+### Gibbs sampler for the Type 2 model
+
+Let $m$ be the number of birds undergoing moult ($s_i = 2$). The sets $\{i: s_i = 1\}$, $\{i: s_i = 2\}$ and $\{i: s_i = 3\}$ denote the birds that have completed moult, are undergoing moult and have not yet started moult respectively. For the birds undergoing moult the start of moult is not latent anymore since it is fully determined by $\tau$ and the observed moult score,
+
+$$
+T_i = t_i - y_i \tau, \qquad i: s_i = 2.
+$$
+
+The latent start dates therefore only need to be sampled for the birds with $s_i = 1$ and $s_i = 3$. The conditional distribution of $\tau$ is no longer uniform since $\tau$ now appears in the density of the observed moult scores. From the derivation above, the conditional of $\tau$ is a truncated MHN distribution,
+
+$$
+\tau \mid \mu, \sigma^2, \boldsymbol{T}, \boldsymbol{y}, \boldsymbol{s}, \boldsymbol{t} \sim \text{MHN}(\alpha, \beta, \gamma) \, I_{\{\tau_L \leq \tau \leq \tau_U\}}
+$$
+
+with
+
+$$
+\alpha = m + 1, \qquad \beta = \frac{1}{2\sigma^2} \sum_{i: s_i = 2} y_i^2, \qquad \gamma = \frac{1}{\sigma^2} \sum_{i: s_i = 2} y_i (t_i - \mu).
+$$
+
+The uniform prior on $\tau$ and the birds that have completed moult restrict $\tau$ to the interval
+
+$$
+\tau_L = 50, \qquad \tau_U = \min\Big(180, \min_{i: s_i = 1} (t_i - T_i)\Big).
+$$
+
+The birds that have not started moult do not restrict $\tau$ since $\tau$ does not appear in the condition $T_i > t_i$. The birds undergoing moult also do not restrict $\tau$ anymore, since substituting $T_i = t_i - y_i\tau$ into $t_i - \tau \leq T_i \leq t_i$ gives $y_i \tau \leq \tau$ and $y_i \tau \geq 0$, which always holds for $0 < y_i < 1$. This is different from the Type 1 model, where the birds undergoing moult gave the lower bound $l$.
+
+Sampling from the MHN directly is difficult, so we use data augmentation (Lemma 5 of Sun et al. (2021)). We introduce an auxiliary variable ($V$ if $\gamma > 0$ or $U$ if $\gamma < 0$) and sample it together with $\tau$. The marginal distribution of $\tau$ is still the MHN, but each of the two conditionals is a standard distribution that is easy to sample from.
+
+**Algorithm**
+
+*Initialisation.* For each chain draw random starting values from the priors, $\mu^{(0)} \sim \text{Uniform}(100, 160)$, $\sigma^{2(0)} \sim \text{InverseGamma}(1,1)$ and $\tau^{(0)} \sim \text{Uniform}(50, 180)$. Then set $T_i^{(0)} = t_i - y_i \tau^{(0)}$ for all $i$ with $s_i = 2$.
+
+*For iteration $k = 1, \dots, N$:*
+
+1. **Birds that have completed moult.** For each $i$ with $s_i = 1$ sample
+
+$$
+T_i^{(k)} \sim \text{N}\big(\mu^{(k-1)}, \sigma^{2(k-1)}\big) \, I_{\{T_i \leq t_i - \tau^{(k-1)}\}}.
+$$
+
+2. **Birds that have not started moult.** For each $i$ with $s_i = 3$ sample
+
+$$
+T_i^{(k)} \sim \text{N}\big(\mu^{(k-1)}, \sigma^{2(k-1)}\big) \, I_{\{T_i > t_i\}}.
+$$
+
+The truncated normal draws in steps 1 and 2 are done using the `RcppTN` package.
+
+3. **Update $\mu$.** Sample
+
+$$
+\mu^{(k)} \sim \text{N}\Big(\bar{T}, \frac{\sigma^{2(k-1)}}{n}\Big) \, I_{\{100 \leq \mu \leq 160\}},
+$$
+
+where $\bar{T}$ is the mean over all $n$ birds, using the sampled $T_i^{(k)}$ for $s_i = 1, 3$ and the calculated $T_i = t_i - y_i \tau^{(k-1)}$ for $s_i = 2$.
+
+4. **Update $\sigma^2$.** Sample
+
+$$
+\sigma^{2(k)} \sim \text{IG}\Big(\frac{n}{2}, \frac{1}{2} \sum_{i=1}^n \big(T_i - \mu^{(k)}\big)^2\Big),
+$$
+
+again using all $n$ start dates.
+
+5. **Update $\tau$ (data augmentation).**
+
+   a. Calculate $\alpha = m+1$, $\beta = \frac{1}{2\sigma^{2(k)}} \sum_{i: s_i = 2} y_i^2$ and $\gamma = \frac{1}{\sigma^{2(k)}} \sum_{i: s_i = 2} y_i (t_i - \mu^{(k)})$.
+
+   b. Calculate the bounds $\tau_L = 50$ and $\tau_U = \min\big(180, \min_{i: s_i = 1} (t_i - T_i^{(k)})\big)$.
+
+   c. If $\gamma > 0$, sample the auxiliary variable and then $\tau^2$:
+
+$$
+V \mid \tau^{(k-1)} \sim \text{Poisson}\big(\gamma \, \tau^{(k-1)}\big), \qquad \tau^2 \mid V \sim \text{Gamma}\Big(\frac{\alpha + V}{2}, \beta\Big) \, I_{\{\tau_L^2 \leq \tau^2 \leq \tau_U^2\}}.
+$$
+
+   If $\gamma < 0$, sample
+
+$$
+U \mid \tau^{(k-1)} \sim \text{GIG}\big(\tfrac{1}{2}, 1, \gamma^2 (\tau^{(k-1)})^2\big), \qquad \tau^2 \mid U \sim \text{Gamma}\Big(\frac{\alpha}{2}, \beta + \frac{\gamma^2}{U}\Big) \, I_{\{\tau_L^2 \leq \tau^2 \leq \tau_U^2\}}.
+$$
+
+   d. Set $\tau^{(k)} = \sqrt{\tau^2}$.
+
+   e. Recalculate $T_i = t_i - y_i \tau^{(k)}$ for all $i$ with $s_i = 2$, so that the next iteration uses start dates that agree with the new value of $\tau$.
+
+6. **Store** $\mu^{(k)}$, $\sigma^{2(k)}$ and $\tau^{(k)}$.
+
+The truncated Gamma in step 5c is sampled using the inverse CDF method. Let $F$ be the CDF of the (untruncated) Gamma distribution. We draw $u \sim \text{Uniform}\big(F(\tau_L^2), F(\tau_U^2)\big)$ and set $\tau^2 = F^{-1}(u)$. Every draw therefore lies in $[\tau_L^2, \tau_U^2]$ and no rejection step is needed. The interval is never empty, since the current $\tau$ is at least 50 and the latent $T_i$ for $s_i = 1$ were drawn so that $\tau \leq t_i - T_i$.
+
+We run three chains of 50 000 iterations each, every chain with its own random starting values.
