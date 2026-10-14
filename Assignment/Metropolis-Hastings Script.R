@@ -160,9 +160,11 @@ data(sanderlings)
 dat <- sanderlings[sanderlings$MIndex!=0 & sanderlings$MIndex!=1,]
 run <- MH_Type_3(dat$MIndex,dat$Day,init = c(110,150,100))
 
-apply(run$draws, 2, mean)
-run$Sigma
+results <- data.frame(
+  Parameter = c("mu", "sigma2", "tau"),
+  Mean = apply(run$draws, 2, mean),
+  Lower_95 = apply(run$draws, 2, quantile, probs = 0.025),
+  Upper_95 = apply(run$draws, 2, quantile, probs = 0.975)
+)
 
-hist(run$draws[,1])
-hist(run$draws[,2])
-hist(run$draws[,3])
+print(results, row.names = FALSE, digits = 4)

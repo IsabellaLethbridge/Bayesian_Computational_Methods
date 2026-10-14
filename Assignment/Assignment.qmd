@@ -32,43 +32,43 @@ editor: visual
 
 ## Question a
 
-We can write the probability that $s_i=3$ as 
+We can write the probability that $s_i=3$ as
 
 $$
 P(t_i) = Pr(T_i > t_i) = \int^{\infty}_{t_i} \frac{1}{\sqrt{2 \pi} \sigma} \text{exp} \big( -\frac{1}{2\sigma^2} (x - \mu)^2\big) dx.
 $$
 
-This can be written in terms of $\Phi$ after standardising 
+This can be written in terms of $\Phi$ after standardising
 
 $$
 P(t_i) = Pr(\frac{T_i-\mu}{\sigma} > \frac{t_i-\mu}{\sigma}) = 1 - \Phi(\frac{t_i-\mu}{\sigma}).
 $$
 
-The probability that $s_i=2$ is denoted as 
+The probability that $s_i=2$ is denoted as
 
 $$
 Q(t_i) = Pr(t_i - \tau \leq T_i \leq t_i) = \int^{t_i}_{t_i - \tau} \frac{1}{\sqrt{2 \pi} \sigma} \text{exp} \big( -\frac{1}{2\sigma^2} (x - \mu)^2\big) dx.
 $$
 
-This can be written in terms of $\Phi$ after standardising 
+This can be written in terms of $\Phi$ after standardising
 
 $$
 Q(t_i) = Pr(\frac{t_i - \tau - \mu}{\sigma} \leq\frac{T_i-\mu}{\sigma} \leq \frac{t_i-\mu}{\sigma}) = \Phi(\frac{t_i-\mu}{\sigma}) - \Phi(\frac{t_i -\tau - \mu}{\sigma}).
 $$
 
-The probability that $s_i=1$ is denoted as 
+The probability that $s_i=1$ is denoted as
 
 $$
 R(t_i) = Pr(T_i \leq t_i - \tau) = \int^{t_i - \tau}_{- \infty} \frac{1}{\sqrt{2 \pi} \sigma} \text{exp} \big( -\frac{1}{2\sigma^2} (x - \mu)^2\big) dx.
 $$
 
-This can be written in terms of $\Phi$ after standardising 
+This can be written in terms of $\Phi$ after standardising
 
 $$
 R(t_i) = Pr(\frac{T_i-\mu}{\sigma} \leq \frac{t_i-\tau-\mu}{\sigma}) = \Phi(\frac{t_i-\tau-\mu}{\sigma}).
-$$ 
+$$
 
-We now have 
+We now have
 
 $$
 L(\boldsymbol{s}, \boldsymbol{t}, \mu, \sigma^2, \tau) = \prod^{n}_{i=1} [1 - \Phi(\frac{t_i-\mu}{\sigma})]^{\text{I}(s_i=3)} \cdot [\Phi(\frac{t_i-\mu}{\sigma}) - \Phi(\frac{t_i -\tau - \mu}{\sigma})]^{\text{I}(s_i=2)} \cdot [\Phi(\frac{t_i-\tau-\mu}{\sigma})]^{\text{I}(s_i=1)}.
@@ -76,7 +76,7 @@ $$
 
 ## Question b
 
-Conditional posterior distributions to iteratively sample from using a Gibbs sampler: 
+Conditional posterior distributions to iteratively sample from using a Gibbs sampler:
 
 $$
 \begin{aligned}
@@ -91,15 +91,15 @@ $$
 
 where $\text{V} = [50,180] \cap [l,h]$
 
-Under the Type 2 model, one has observed the moult scores for the birds undergoing moult. Fot those birds the probability density function of the moult score are 
+Under the Type 2 model, one has observed the moult scores for the birds undergoing moult. Fot those birds the probability density function of the moult score are
 
 $$
 f_y(y) = \tau f_T(t-y\tau) \qquad 0<y<1. 
-$$ 
+$$
 
 After observing the moult scores when $s_i=2$ we need to update the conditional distributions. Only $T_i \mid \mu,\sigma^2,\tau,s_i =2, \quad t_i  \sim \text{N}(\mu, \sigma^2) I_{\{t_i-\tau \leq T_i \leq t_i \}} \forall i$ and $\tau \mid . \sim \text{Unif}(\tau \in V)$ change.
 
-We know that $T_i = t_i-y_i \cdot \tau$. 
+We know that $T_i = t_i-y_i \cdot \tau$.
 
 We can write the probability density function (ref eq here) as (for a single obervation)
 
@@ -131,7 +131,7 @@ a.  If $\gamma>0$ then there exists a random variable $V$ such that $V\mid X \si
 
 b.  If $\gamma<0$ then there exists a random variable $U$ such that $U\mid X \sim \text{GIG}(\frac{1}{2},1,\gamma^2 X^2)$ and $X^2 \mid U \sim \text{Gamma}(\frac{\alpha}{2}, (\beta + \frac{\gamma^2}{U})$.
 
-The PDF for the modified half normal is 
+The PDF for the modified half normal is
 
 $$
 \begin{aligned}
@@ -140,7 +140,7 @@ f(x\mid \alpha, \beta, \gamma) & = \dfrac{2 \beta^{\alpha/2} x^{\alpha-1} \text{
 \end{aligned}
 $$
 
-From (ref eq here) we have $\alpha = m+1$, $\beta = \frac{1}{2\sigma^2} \sum^m_{i=1} y_i^2$ and $\gamma = \frac{1}{\sigma^2} \sum^m_{i=1} y_i(t_i-\mu)$. 
+From (ref eq here) we have $\alpha = m+1$, $\beta = \frac{1}{2\sigma^2} \sum^m_{i=1} y_i^2$ and $\gamma = \frac{1}{\sigma^2} \sum^m_{i=1} y_i(t_i-\mu)$.
 
 We can now write the distribution for $\tau$ as (Notation is getting a bit confusing here as we now have 2 V's)
 
@@ -148,7 +148,7 @@ $$
 \tau \sim \text{MHN}\big(\alpha = m+1, \beta = \frac{1}{2\sigma^2} \sum^m_{i=1} y_i^2, \gamma = \frac{1}{\sigma^2} \sum^m_{i=1} y_i(t_i-\mu)\big) \cdot I_{\{\tau \in \text{V}\}}.
 $$
 
-From $s_i=1$ we have 
+From $s_i=1$ we have
 
 $$
 \begin{aligned}
@@ -157,9 +157,9 @@ T_i & \leq t_i - \tau \\
 \end{aligned}
 $$
 
-Since $t_i$ changes for every $i$ we have the upper bound $h = \text{min}(t_i -T_i) \forall i$. (I'm not sure if this is the most elegant way of writing this but we can fix it later). 
+Since $t_i$ changes for every $i$ we have the upper bound $h = \text{min}(t_i -T_i) \forall i$. (I'm not sure if this is the most elegant way of writing this but we can fix it later).
 
-For $s_i = 3$ we have 
+For $s_i = 3$ we have
 
 $$
 \begin{aligned}
@@ -174,16 +174,16 @@ Since $0<y_i<1$ and $\tau>0$, this is always true.
 
 Thus $\text{V} = [50,min(180,h)]$ and $\tau \in [50^2, \text{min}(100,h)^2]$.
 
-We now consider case (a): $\gamma > 0$ 
+We now consider case (a): $\gamma > 0$
 
-Let $m$ be the number of birds with $s_i=2$ (the moutling birds). 
+Let $m$ be the number of birds with $s_i=2$ (the moutling birds).
 
 $$
 \begin{aligned}
 \gamma = \frac{1}{\sigma^2} \sum^m_{i=1} y_i(t_i-\mu) & > 0 \\
 \sum^m_{i=1} y_i(t_i-\mu) & > 0
 \end{aligned}
-$$ 
+$$
 
 $$
 \begin{aligned}
@@ -196,7 +196,7 @@ $$
 \tau^2 \mid V \sim \text{Gamma}\big(\frac{m+1+V}{2},\frac{1}{2\sigma^2} \sum^m_{i=1} y_i^2\big)
 $$
 
-Next consider case (b): $\gamma < 0$ 
+Next consider case (b): $\gamma < 0$
 
 $$
 \begin{aligned}
@@ -251,15 +251,15 @@ Sampling from the MHN directly is difficult, so we use data augmentation (Lemma 
 
 *Initialisation.* For each chain draw random starting values from the priors, $\mu^{(0)} \sim \text{Uniform}(100, 160)$, $\sigma^{2(0)} \sim \text{InverseGamma}(1,1)$ and $\tau^{(0)} \sim \text{Uniform}(50, 180)$. Then set $T_i^{(0)} = t_i - y_i \tau^{(0)}$ for all $i$ with $s_i = 2$.
 
-*For iteration $k = 1, \dots, N$:*
+*For iteration* $k = 1, \dots, N$:
 
-1. **Birds that have completed moult.** For each $i$ with $s_i = 1$ sample
+1.  **Birds that have completed moult.** For each $i$ with $s_i = 1$ sample
 
 $$
 T_i^{(k)} \sim \text{N}\big(\mu^{(k-1)}, \sigma^{2(k-1)}\big) \, I_{\{T_i \leq t_i - \tau^{(k-1)}\}}.
 $$
 
-2. **Birds that have not started moult.** For each $i$ with $s_i = 3$ sample
+2.  **Birds that have not started moult.** For each $i$ with $s_i = 3$ sample
 
 $$
 T_i^{(k)} \sim \text{N}\big(\mu^{(k-1)}, \sigma^{2(k-1)}\big) \, I_{\{T_i > t_i\}}.
@@ -267,7 +267,7 @@ $$
 
 The truncated normal draws in steps 1 and 2 are done using the `RcppTN` package.
 
-3. **Update $\mu$.** Sample
+3.  **Update** $\mu$. Sample
 
 $$
 \mu^{(k)} \sim \text{N}\Big(\bar{T}, \frac{\sigma^{2(k-1)}}{n}\Big) \, I_{\{100 \leq \mu \leq 160\}},
@@ -275,7 +275,7 @@ $$
 
 where $\bar{T}$ is the mean over all $n$ birds, using the sampled $T_i^{(k)}$ for $s_i = 1, 3$ and the calculated $T_i = t_i - y_i \tau^{(k-1)}$ for $s_i = 2$.
 
-4. **Update $\sigma^2$.** Sample
+4.  **Update** $\sigma^2$. Sample
 
 $$
 \sigma^{2(k)} \sim \text{IG}\Big(\frac{n}{2}, \frac{1}{2} \sum_{i=1}^n \big(T_i - \mu^{(k)}\big)^2\Big),
@@ -283,30 +283,52 @@ $$
 
 again using all $n$ start dates.
 
-5. **Update $\tau$ (data augmentation).**
+5.  **Update** $\tau$ (data augmentation).
 
-   a. Calculate $\alpha = m+1$, $\beta = \frac{1}{2\sigma^{2(k)}} \sum_{i: s_i = 2} y_i^2$ and $\gamma = \frac{1}{\sigma^{2(k)}} \sum_{i: s_i = 2} y_i (t_i - \mu^{(k)})$.
+    a.  Calculate $\alpha = m+1$, $\beta = \frac{1}{2\sigma^{2(k)}} \sum_{i: s_i = 2} y_i^2$ and $\gamma = \frac{1}{\sigma^{2(k)}} \sum_{i: s_i = 2} y_i (t_i - \mu^{(k)})$.
 
-   b. Calculate the bounds $\tau_L = 50$ and $\tau_U = \min\big(180, \min_{i: s_i = 1} (t_i - T_i^{(k)})\big)$.
+    b.  Calculate the bounds $\tau_L = 50$ and $\tau_U = \min\big(180, \min_{i: s_i = 1} (t_i - T_i^{(k)})\big)$.
 
-   c. If $\gamma > 0$, sample the auxiliary variable and then $\tau^2$:
+    c.  If $\gamma > 0$, sample the auxiliary variable and then $\tau^2$:
 
 $$
 V \mid \tau^{(k-1)} \sim \text{Poisson}\big(\gamma \, \tau^{(k-1)}\big), \qquad \tau^2 \mid V \sim \text{Gamma}\Big(\frac{\alpha + V}{2}, \beta\Big) \, I_{\{\tau_L^2 \leq \tau^2 \leq \tau_U^2\}}.
 $$
 
-   If $\gamma < 0$, sample
+If $\gamma < 0$, sample
 
 $$
 U \mid \tau^{(k-1)} \sim \text{GIG}\big(\tfrac{1}{2}, 1, \gamma^2 (\tau^{(k-1)})^2\big), \qquad \tau^2 \mid U \sim \text{Gamma}\Big(\frac{\alpha}{2}, \beta + \frac{\gamma^2}{U}\Big) \, I_{\{\tau_L^2 \leq \tau^2 \leq \tau_U^2\}}.
 $$
 
-   d. Set $\tau^{(k)} = \sqrt{\tau^2}$.
+d.  Set $\tau^{(k)} = \sqrt{\tau^2}$.
 
-   e. Recalculate $T_i = t_i - y_i \tau^{(k)}$ for all $i$ with $s_i = 2$, so that the next iteration uses start dates that agree with the new value of $\tau$.
+e.  Recalculate $T_i = t_i - y_i \tau^{(k)}$ for all $i$ with $s_i = 2$, so that the next iteration uses start dates that agree with the new value of $\tau$.
 
-6. **Store** $\mu^{(k)}$, $\sigma^{2(k)}$ and $\tau^{(k)}$.
+<!-- -->
+
+6.  **Store** $\mu^{(k)}$, $\sigma^{2(k)}$ and $\tau^{(k)}$.
 
 The truncated Gamma in step 5c is sampled using the inverse CDF method. Let $F$ be the CDF of the (untruncated) Gamma distribution. We draw $u \sim \text{Uniform}\big(F(\tau_L^2), F(\tau_U^2)\big)$ and set $\tau^2 = F^{-1}(u)$. Every draw therefore lies in $[\tau_L^2, \tau_U^2]$ and no rejection step is needed. The interval is never empty, since the current $\tau$ is at least 50 and the latent $T_i$ for $s_i = 1$ were drawn so that $\tau \leq t_i - T_i$.
 
 We run three chains of 50 000 iterations each, every chain with its own random starting values.
+
+## Question c
+
+We sample from the likelihood surface using a Metropolis Hastings algorithm. However we have the problem that the steps of our random walk are drawn a multivariate normal distribution. But each of our three parameters do not have support over the entire real line: $\mu$, which determines the average start time, is constrained by a uniform prior to be situated between 100–160; $\tau$, which determines the speed of moulting, is also contrainted by its prior to be situated within 50–180; finally the variance is strictly positive. We define the following transformations:\
+$$\begin{align}
+f(\mu)&=\text{logit} \frac{\mu-100}{60}\\
+g(\tau)&=\text{logit} \frac{\tau-50}{130}\\
+h(\sigma^2)&= \log \sigma^2
+\end{align}$$ These transformation each have support over the entire real line; thus we may perform our random walk over this transformed space. Since we are unsure how our parameters are correlated; to begin with, the steps of our random walk are drawn from:\
+$$e_i\sim\mathcal{N}(0,c \,I)$$ For some constant $c$. However, when back transform (let $\theta$ be our original parameters and $\phi$ their transformations) we must include the jacobian term in the posterior likelihood in order to ensure that the Metropolis-Hasting algorithm converges to the appropriate likelihood; the log-likelihood becomes: $$L(\theta)+\log(\pi(\theta))+\log|J(\phi)|$$ Where $J(\phi)$ is the Jacobian of our transformation. However, we would like to tune our random walk to have a more appropriate covaraince matrix; to achieve this we utilize 3000 burnin iterations and estimate the covariance matrix $\Sigma$ of our transformed parameters on these iterations. Them each of our retained draws each have their random walk drawn from: $$e\sim\mathcal{N}(0,\Sigma)$$ And the Metropolis Hastings algorithm algorithm proceeds as per usual. We obtain the following estimates of our parameters and as well as 95% credible intervals on them:
+
+| Parameter                  | Posterior mean | 2.5% quantile | 97.5% quantile |
+|:---------------------------|---------------:|--------------:|---------------:|
+| Mean start time ($\mu$)    |         130.67 |        114.61 |         152.40 |
+| Variance ($\sigma\^2$)    |         317.18 |        195.19 |         525.00 |
+| Moulting duration ($\tau$) |          92.79 |         56.43 |         128.40 |
+
+: Posterior mean estimates and 95% credible intervals for the Type 3 moulting model. {#tbl-mh-estimates}
+
+We 
