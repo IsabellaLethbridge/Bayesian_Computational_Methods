@@ -28,113 +28,117 @@ execute:
 editor: visual
 ---
 
-## Introduction
+# Introduction
 
-## Question a
+# Question a
 
-Each of the $n$ birds is caught exactly once. The capture day of bird $i$ is denoted as $t_i$ and is treated as fixed. Every birds moults at the same constant rate, with moult lasting $\tau$ days for all birds. The start of moult for bird $i$, $T_i$, is an unobserved random variable, where
+Each of the $n$ birds is caught exactly once. The capture day of bird $i$ is denoted by $t_i$ and is treated as fixed. Every bird moults at the same constant rate, with moult lasting $\tau$ days for all birds. The start of moult for bird $i$, $T_i$, is an unobserved random variable, where
 
 $$
 T_i \overset{\text{iid}}{\sim} \text{N}(\mu, \sigma^2), \qquad f_T(x) = \frac{1}{\sqrt{2\pi}\sigma} \text{exp}\left(-\frac{1}{2\sigma^2}(x-\mu)^2\right), \qquad i = 1, \dots, n.
-$$
+$$ {#eq-startdate}
 
-Let $Z = \frac{T_i -\mu}{\sigma} \sim \text{N}(0,1)$ and let $\Phi$ denote the corresponding CDF. In the Type 1 model, the moult scores ($y_i$) are not observed, rather the status ($s_i \in \{1,2,3\}$) of each bird is observed. 
+Let $Z = \frac{T_i -\mu}{\sigma} \sim \text{N}(0,1)$ and let $\Phi$ denote the corresponding CDF. In the Type 1 model, only the status ($s_i \in \{1,2,3\}$) of each bird is observed.
 
-For $s_i=3$, bird $i$ has not yet started moult: 
+For $s_i=3$, bird $i$ has not yet started moult:
 
 $$
 P(t_i) = \text{Pr}(T_i > t_i) = \text{Pr}\left(Z > \frac{t_i -\mu}{\sigma}\right) = 1 - \Phi\left(\frac{t_i - \mu}{\sigma}\right). 
-$$
+$$ {#eq-P}
 
-For $s_i=2$, bird $i$ is currently moulting: 
+For $s_i=2$, bird $i$ is currently moulting:
 
 $$
 Q(t_i) = \text{Pr}(t_i - \tau \leq T_i \leq t_i) = \text{Pr}\left(\frac{t_i-\tau-\mu}{\sigma} \leq Z \leq \frac{t_i-\mu}{\sigma}\right) = \Phi\left(\frac{t_i-\mu}{\sigma}\right) - \Phi\left(\frac{t_i -\tau - \mu}{\sigma}\right).
-$$
+$$ {#eq-Q}
 
-For $s_i=1$, bird $i$ has finished moulting: 
+For $s_i=1$, bird $i$ has finished moulting:
 
 $$
 R(t_i) = \text{Pr}(T_i \leq t_i - \tau) = \text{Pr}\left(Z \leq \frac{t_i -\tau- \mu}{\sigma}\right) = \Phi\left(\frac{t_i-\tau-\mu}{\sigma}\right).
-$$
+$$ {#eq-R}
 
-Given $t_i$, the status $s_i$ is a single categorical draw with probabilities $P(t_i), Q(t_i)$ and $R(t_i)$. Thus, we can write the conditional probability of $s_i$ as 
+Given $t_i$, the status $s_i$ is a single categorical draw with probabilities $P(t_i), Q(t_i)$ and $R(t_i)$, given in @eq-P, @eq-Q and @eq-R. Thus, the conditional probability of $s_i$ can be written as
 
 $$
 \text{Pr}(s_i \mid t_i,\mu,\sigma^2,\tau) = P(t_i)^{\text{I}\{s_i=3\}} \, Q(t_i)^{\text{I}\{s_i=2\}} \, R(t_i)^{\text{I}\{s_i=1\}}.
-$$
+$$ {#eq-status}
 
-Since the birds are independent, the likelihood can be written as the product over all $n$ birds: 
+Since the birds are independent, the likelihood is the product of @eq-status over all $n$ birds
 
 $$
 \begin{aligned}
 L(\boldsymbol{s}, \boldsymbol{t}, \mu, \sigma^2, \tau) & = \prod^n_{i=1} P(t_i)^{\text{I}\{s_i=3\}} \, Q(t_i)^{\text{I}\{s_i=2\}} \, R(t_i)^{\text{I}\{s_i=1\}} \\
 & = \prod^{n}_{i=1} \left[1 - \Phi(\frac{t_i-\mu}{\sigma})\right]^{\text{I}\{s_i=3\}} \, \left[\Phi(\frac{t_i-\mu}{\sigma}) - \Phi(\frac{t_i -\tau - \mu}{\sigma})\right]^{\text{I}\{s_i=2\}} \, \left[\Phi(\frac{t_i-\tau-\mu}{\sigma})\right]^{\text{I}\{s_i=1\}}.
 \end{aligned}
-$$
+$$ {#eq-lik1}
 
-On any capture day $t$, the population consists of birds which belong to three different states. Birds have either not yet started to moult, are undergoing moult or have completed moult. These states occur in proportions $P(t), Q(t)$ and $R(t)$, which depend on $t$ through $\mu$, $\sigma^2$ and $\tau$. Thus, the moult index has a mixture distribution with a point mass at 0 and 1 with weights $P(t)$ and $R(t)$, respectively, as well as a continuous component on ($0,1$) with weight $Q(t)$. In the Type 1 model, the moult index is not observed. We only observe the state that bird $i$ belongs to. Thus, each bird contributes the weight of the state it belongs to $P(t_i)$, $Q(t_i)$ or $R(t_i)$, to the likelihood. 
+On any capture day $t$, the population consists of birds which belong to three different states. Birds have either not yet started to moult, are undergoing moult or have completed moult. These states occur in proportions $P(t), Q(t)$ and $R(t)$, which depend on $t$ through $\mu$, $\sigma^2$ and $\tau$. Thus, the moult index has a mixture distribution with a point mass at 0 and 1 with weights $P(t)$ and $R(t)$, respectively, as well as a continuous component on ($0,1$) with weight $Q(t)$. In the Type 1 model, the moult index is not observed. We only observe the state that bird $i$ belongs to. Thus, each bird contributes the weight of the state it belongs to $P(t_i)$, $Q(t_i)$ or $R(t_i)$, to @eq-lik1.
 
-## Question b
+# Question b
 
-In the Type 2 model, the moult scores ($y_i$) for birds that are currently moulting are observed. We group the birds according to their status. Let $\mathcal{F} = \{i : s_i = 1\}$ denote the set of birds that have already moulted, $\mathcal{M} = \{i : s_i = 2\}$ denote set of birds that are undergoing moult and $\mathcal{N} = \{i : s_i = 3\}$ denote the set of birds that have not yet started to moult. Let $m = |\mathcal{M}|$ be the number of birds currently moulting.
+In the Type 2 model, the moult scores ($y_i$) for birds that are currently moulting are observed. The birds are grouped according to their states. Let $\mathcal{F} = \{i : s_i = 1\}$ denote the set of birds that have already moulted, $\mathcal{M} = \{i : s_i = 2\}$ denote the set of birds that are undergoing moult and $\mathcal{N} = \{i : s_i = 3\}$ denote the set of birds that have not yet started to moult. Let $m = |\mathcal{M}|$ be the number of birds currently moulting.
 
 For a bird undergoing moult, the linear assumption gives $T_i = t_i - y_i\tau$. The probability density function of its observed moult score is
 
 $$
-f_y(y_i) = \tau f_T(t_i - y_i\tau) \qquad 0<y<1.
-$$
+f_y(y_i) = \tau f_T(t_i - y_i\tau) \qquad 0<y_i<1.
+$$ {#eq-fy}
 
-The likelihood contribution for birds that have already moulted and birds that have not yet started to moult is the same as in the Type 1 model. The Type 2 likelihood is therefore 
+The likelihood contributions of birds that have already moulted and birds that have not yet started to moult are the same as in the Type 1 model. Thus, the Type 2 likelihood is
 
 $$
-L(\boldsymbol{s}, \boldsymbol{y}, \boldsymbol{t}, \mu, \sigma^2, \tau) = \prod_{i \in \mathcal{F}} R(t_i) \, \prod_{i \in \mathcal{M}} \tau f_T(t_i - y_i\tau) \, \prod_{i \in \mathcal{N}} P(t_i).
-$$
+L(\boldsymbol{s}, \boldsymbol{y}, \boldsymbol{t}, \mu, \sigma^2, \tau) = \prod_{i \in \mathcal{F}} R(t_i) \, \prod_{i \in \mathcal{M}} \tau f_T(t_i - y_i\tau) \, \prod_{i \in \mathcal{N}} P(t_i),
+$$ {#eq-lik2}
 
-The joint posterior distribution is 
+and the joint posterior distribution is
 
 $$
 \pi(\mu, \sigma^2, \tau \mid \boldsymbol{s}, \boldsymbol{y}, \boldsymbol{t}) \propto \prod_{i \in \mathcal{F}} R(t_i) \, \prod_{i \in \mathcal{M}} \tau f_T(t_i - y_i\tau) \, \prod_{i \in \mathcal{N}} P(t_i) \, \pi(\mu) \, \pi(\sigma^2) \, \pi(\tau),
+$$ {#eq-post2}
+
+with the following prior distributions 
+
 $$
+\mu \sim \text{Uniform}(100,160), \quad \sigma^2 \sim \text{IG}(1,1), \quad \tau \sim \text{Uniform}(50,180).
+$$ {#eq-priors}
 
-with the following prior distributions $\mu \sim \text{Uniform}(100,160)$, $\pi(\sigma^2) \sim \text{IG}(1,1)$, $\tau \sim \text{Uniform}(50,180)$.
+## Data augmentation
 
-### Data augmentation
-
-The probabilities $R(t_i)$ and $P(t_i)$ are integrals over the unobserved start date
+The probabilities $R(t_i)$ and $P(t_i)$ in @eq-post2 are integrals over the unobserved start date
 
 $$
 \begin{aligned}
-R(t_i) & = \text{Pr}(T_i \leq t_i - \tau) = \int_{-\infty}^{\infty} f_T(T_i)\, \text{I}\{T_i \leq t_i - \tau\}\, dT_i \\
+R(t_i) & = \text{Pr}(T_i \leq t_i - \tau) = \int_{-\infty}^{\infty} f_T(T_i)\, \text{I}\{T_i \leq t_i - \tau\}\, dT_i, \\
 P(t_i) & = \text{Pr}(T_i > t_i) = \int_{-\infty}^{\infty} f_T(T_i)\, \text{I}\{T_i > t_i\}\, dT_i.
 \end{aligned}
-$$
+$$ {#eq-RPintegrals}
 
-The status is fully determined by the start date ($T_i$), so each integrand is the joint density of the start date and the bird's status
+The status is fully determined by the start date ($T_i$), so each integrand in @eq-RPintegrals is the joint density of the start date and the bird's status
 
 $$
 \begin{aligned}
 p(T_i, s_i = 1 \mid \mu, \sigma^2, \tau) &= f_T(T_i)\, \text{I}\{T_i \leq t_i - \tau\}, \\
 p(T_i, s_i = 3 \mid \mu, \sigma^2) &= f_T(T_i)\, \text{I}\{T_i > t_i\}.
 \end{aligned}
-$$
+$$ {#eq-jointTs}
 
-We treat $T_i$ for $i \in \mathcal{F} \cup \mathcal{N}$ as latent variables and sample from the augmented posterior
+$T_i$ for $i \in \mathcal{F} \cup \mathcal{N}$ is treated as a latent variable and samples are drawn from the augmented posterior
 
 $$
 \begin{aligned}
 \pi(\boldsymbol{T}_{(\mathcal{F} \cup \mathcal{N})}, \mu, \sigma^2, \tau \mid \boldsymbol{s}, \boldsymbol{y}, \boldsymbol{t}) & \propto \prod_{i \in \mathcal{F}} \left[f_T(T_i)\, \text{I}\{T_i \leq t_i - \tau\}\right] \, \prod_{i \in \mathcal{M}} \left[\tau f_T(t_i - y_i\tau)\right] \\
 & \times \prod_{i \in \mathcal{N}} \left[f_T(T_i)\, \text{I}\{T_i > t_i\}\right] \, \pi(\mu) \, \pi(\sigma^2) \, \pi(\tau).
 \end{aligned}
-$$
+$$ {#eq-augpost}
 
-Integrating out each $T_i$ returns $R(t_i)$ or $P(t_i)$ 
+Integrating out each $T_i$ in @eq-augpost returns $R(t_i)$ or $P(t_i)$, so that
 
 $$
 \int \pi(\boldsymbol{T}_{(\mathcal{F} \cup \mathcal{N})}, \mu, \sigma^2, \tau \mid \boldsymbol{s}, \boldsymbol{y}, \boldsymbol{t})\, d\boldsymbol{T}_{(\mathcal{F} \cup \mathcal{N})} = \pi(\mu, \sigma^2, \tau \mid \boldsymbol{s}, \boldsymbol{y}, \boldsymbol{t}).
-$$
+$$ {#eq-marginal}
 
-The posterior distribution of interest is the marginal of the augmented posterior. The draws of  $(\mu, \sigma^2, \tau)$ from a sampler targeting the augmented posterior are draws from the required posterior. No latent variables are needed for the moulting birds, since $T_i = t_i - y_i\tau$ is deterministic for $i \in \mathcal{M}$. Since $0<y_i<1$, $t_i -\tau \leq T_i \leq t_i$ is always satisfied. 
+The posterior distribution of interest, @eq-post2, is the marginal distribution of the augmented posterior. Thus, the draws of $(\mu, \sigma^2, \tau)$ from a sampler targeting the augmented posterior are draws from the required posterior. No latent variables are needed for the moulting birds, since $T_i = t_i - y_i\tau$ is a deterministic function of $\tau$ for $i \in \mathcal{M}$. Since $0<y_i<1$, the condition $t_i -\tau \leq T_i \leq t_i$ is always satisfied.
 
 ### Conditional distributions of $T_i$
 
@@ -145,11 +149,11 @@ $$
 T_i \mid \cdot &\sim \text{N}(\mu, \sigma^2)\, \text{I}\{T_i \leq t_i - \tau\}, & i \in \mathcal{F}, \\
 T_i \mid \cdot &\sim \text{N}(\mu, \sigma^2)\, \text{I}\{T_i > t_i\}, & i \in \mathcal{N}.
 \end{aligned}
-$$
+$$ {#eq-condT}
 
 ### Conditional distribution of $\mu$
 
-Keeping only the factors that involve $\mu$, namely the $n$ normal densities and the prior,
+From @eq-augpost, the full conditional distribution of $\mu$ is 
 
 $$
 \begin{aligned}
@@ -161,7 +165,7 @@ $$
 \end{aligned}
 $$
 
-Let $\bar{T} = \frac{1}{n}\sum_{i=1}^n T_i$. 
+Let $\bar{T} = \frac{1}{n}\sum_{i=1}^n T_i$. Expanding the sum of squares gives
 
 $$
 \begin{aligned}
@@ -171,9 +175,7 @@ $$
 \end{aligned}
 $$
 
-since $\sum_{i=1}^n (T_i - \bar{T}) = 0$. 
-
-The first term does not depend on $\mu$, so
+since $\sum_{i=1}^n (T_i - \bar{T}) = 0$. Thus,
 
 $$
 \pi(\mu \mid \cdot) \propto \exp\left(-\frac{n}{2\sigma^2}(\mu - \bar{T})^2\right) \text{I}\{100 \leq \mu \leq 160\}.
@@ -183,13 +185,13 @@ This is the kernel of a truncated normal distribution
 
 $$
 \mu \mid \cdot \sim \text{N}\left(\bar{T}, \frac{\sigma^2}{n}\right) \text{I}\{100 \leq \mu \leq 160\}.
-$$
+$$ {#eq-condmu}
 
 For the moulting birds, $T_i = t_i - y_i\tau$ is used in $\bar{T}$.
 
 ### Conditional distribution of $\sigma^2$
 
-Keeping only the factors that involve $\sigma^2$, namely the $n$ normal densities and the prior, Let $S = \sum_{i=1}^n (T_i - \mu)^2$,
+Let $S = \sum_{i=1}^n (T_i - \mu)^2$. From @eq-augpost, the full conditional distribution of $\sigma^2$ is 
 
 $$
 \begin{aligned}
@@ -200,17 +202,17 @@ $$
 \end{aligned}
 $$
 
-This the kernel of an inverse-gamma distribution 
+This is the kernel of an inverse-gamma distribution
 
 $$
 \sigma^2 \mid \cdot \sim \text{IG}\left(\frac{n}{2} + 1,\; 1 + \frac{1}{2}\sum_{i=1}^n (T_i - \mu)^2\right).
-$$
+$$ {#eq-condsigma2}
 
-This differs from the Type 1 conditional given in the assignment, which corresponds to the prior $\pi(\sigma^2) \propto 1/\sigma^2$ rather than $\text{IG}(1, 1)$.
+@eq-condsigma2 differs from the Type 1 conditional given in the assignment, which corresponds to the prior $\pi(\sigma^2) \propto 1/\sigma^2$ as opposed to $\text{IG}(1, 1)$.
 
 ### Conditional distribution of $\tau$
 
-Keeping only the factors that involve $\tau$, namely the densities of the moulting birds (with $T_i = t_i - y_i\tau$), the indicators of the finished birds and the prior,
+From @eq-augpost, with $T_i=t_i-y_i\tau$ for the moulting birds, the full conditional distribution of $\tau$ is
 
 $$
 \begin{aligned}
@@ -219,19 +221,19 @@ $$
 \end{aligned}
 $$
 
-**Moulting birds.** 
+The moulting birds contribute
 
 $$
 \prod_{i \in \mathcal{M}} \tau f_T(t_i - y_i\tau) \propto \tau^m \exp\left(-\frac{1}{2\sigma^2} \sum_{i \in \mathcal{M}} (t_i - \mu - y_i\tau)^2\right).
 $$
 
-Expanding the square,
+Expanding the square gives
 
 $$
 \sum_{i \in \mathcal{M}} (t_i - \mu - y_i\tau)^2 = \sum_{i \in \mathcal{M}} (t_i - \mu)^2 - 2\tau \sum_{i \in \mathcal{M}} y_i (t_i - \mu) + \tau^2 \sum_{i \in \mathcal{M}} y_i^2,
 $$
 
-where the first term does not depend on $\tau$. 
+where the first term does not depend on $\tau$. Thus, 
 
 $$
 \prod_{i \in \mathcal{M}} \tau f_T(t_i - y_i\tau) \propto \tau^m \exp\left(-\beta\tau^2 + \gamma\tau\right),
@@ -239,19 +241,15 @@ $$
 
 where $\beta = \frac{\sum_{i \in \mathcal{M}} y_i^2}{2\sigma^2}$ and $\gamma = \frac{\sum_{i \in \mathcal{M}} y_i (t_i - \mu)}{\sigma^2}.$
 
-**Finished birds.**
-
-The product of the indicators equals one only if this holds for every finished bird, so
+The finished birds only contribute through their indicators. The product equals one only if the condition holds for every finished bird, so
 
 $$
 \prod_{i \in \mathcal{F}} \text{I}\{T_i \leq t_i - \tau\} = \text{I}\{\tau \leq \underset{i \in \mathcal{F}}{\text{min}}(t_i - T_i)\}
 $$
 
-Let $h = \underset{i \in \mathcal{F}}{\text{min}}(t_i - T_i)$. 
+Let $h = \underset{i \in \mathcal{F}}{\text{min}}(t_i - T_i)$. Thus, the duration of moult cannot exceed the time between the start date and the capture date of any finished bird.
 
-That is, the duration of moult cannot exceed the time between the start date and the capture date of any finished bird.
-
-**Combining.** 
+Combining these two terms with the prior gives
 
 $$
 \pi(\tau \mid \cdot) \propto \tau^{m} \exp\left(-\beta\tau^2 + \gamma\tau\right) \text{I}\{50 \leq \tau \leq \min(180, h)\}.
@@ -261,11 +259,11 @@ This is the kernel of a Modified-Half-Normal distribution (Sun et al., 2021)
 
 $$
 \tau \mid \cdot \sim \text{MHN}\left(m + 1,\; \frac{\sum_{i \in \mathcal{M}} y_i^2}{2\sigma^2},\; \frac{\sum_{i \in \mathcal{M}} y_i (t_i - \mu)}{\sigma^2}\right) \text{I}\{50 \leq \tau \leq \min(180, h)\}.
-$$
+$$ {#eq-condtau}
 
-In the Type 1 model, $\tau$ appears only in the indicators and has a uniform conditional distribution. In the Type 2 model, the observed moult scores result in a non-uniformly shaped conditional of $\tau$. Sampling from this distribution can be simplified using a further data augmentation step (Lemma 5 of Sun et al., 2021). The form of this data augmentation depends on the sign of $\gamma$. Since $y_i > 0$, $\gamma \geq 0$ if and only if $\mu \leq \bar{t}_y = \sum_{i \in \mathcal{M}} y_i t_i \big/ \sum_{i \in \mathcal{M}} y_i$.
+In the Type 1 model, $\tau$ appears only in the indicators and has a uniform conditional distribution. In the Type 2 model, the observed moult scores result in a non-uniformly shaped conditional of $\tau$. Sampling from @eq-condtau can be simplified using a further data augmentation step (Lemma 5 of Sun et al., 2021). The form of this data augmentation depends on the sign of $\gamma$. Since $y_i > 0$, $\gamma \geq 0$ if and only if $\mu \leq \bar{t}_y = \sum_{i \in \mathcal{M}} y_i t_i \big/ \sum_{i \in \mathcal{M}} y_i$.
 
-**Case $\gamma \geq 0$.** Introduce a latent variable $V$ such that $V \mid \tau \sim \text{Poisson}(\gamma\tau)$. Multiplying the conditional of $\tau$ by the Poisson probability gives
+When $\gamma \geq 0$, a latent variable $V$ is introduced such that $V \mid \tau \sim \text{Poisson}(\gamma\tau)$. Multiplying the conditional distribution of $\tau$ by the Poisson probability gives
 
 $$
 \tau^{m} e^{-\beta\tau^2 + \gamma\tau} \cdot \frac{e^{-\gamma\tau}(\gamma\tau)^V}{V!} \propto \tau^{m + V} e^{-\beta\tau^2},
@@ -275,32 +273,34 @@ so the term $e^{\gamma\tau}$ cancels. Substituting $W = \tau^2$ and noting that 
 
 $$
 W \mid V \sim \text{Gamma}\left(\frac{m + 1 + V}{2},\; \beta\right) \text{I}\{50^2 \leq W \leq \min(180, h)^2\},
-$$
+$$ {#eq-augV}
 
-where $\beta$ is the rate parameter. When $\gamma = 0$, $V = 0$ and this reduces to a truncated $\text{Gamma}\left(\frac{m+1}{2}, \beta\right)$ distribution.
+where $\beta$ is the rate parameter. When $\gamma = 0$, $V = 0$ and @eq-augV reduces to a truncated $\text{Gamma}\left(\frac{m+1}{2}, \beta\right)$ distribution.
 
-**Case $\gamma < 0$.** Using the parameterisation $\text{GIG}(p, a, b)$ with density proportional to $u^{p-1}\exp\{-(au + b/u)/2\}$, introduce a latent variable $U$ such that
+When $\gamma < 0$, a latent variable $U$ is introduced instead. Using the parameterisation $\text{GIG}(p, a, b)$ with density proportional to $u^{p-1}\exp\{-(au + b/u)/2\}$,
 
 $$
 \begin{aligned}
 U \mid \tau &\sim \text{GIG}\left(\frac{1}{2},\; 1,\; \gamma^2\tau^2\right), \\
 W \mid U &\sim \text{Gamma}\left(\frac{m + 1}{2},\; \beta + \frac{\gamma^2}{2U}\right) \text{I}\{50^2 \leq W \leq \min(180, h)^2\}.
 \end{aligned}
-$$
+$$ {#eq-augU}
+
+Under this parameterisation of the GIG distribution the rate parameter is $\beta + \frac{\gamma^2}{2U}$. Sun et al. (2021) state the rate as $\beta + \frac{\gamma^2}{U}$, which corresponds to a different parameterisation of the GIG distribution.
 
 In both cases, the truncated gamma distribution can be sampled exactly using the inverse CDF method, after which $\tau = \sqrt{W}$. The latent variable $V$ or $U$ is redrawn given the current $\tau$ at every iteration and then discarded, so the conditionals of the other parameters are unchanged.
 
 ### The Gibbs sampling algorithm
 
-1. Initialise $\mu^{(0)} \sim \text{U}(100, 160)$, $\sigma^{2(0)} \sim \text{IG}(1, 1)$ and $\tau^{(0)} \sim \text{U}(50, 180)$. Draw $T_i^{(0)}$ for $i \in \mathcal{F} \cup \mathcal{N}$ from their truncated normal conditionals given these values.
-2. For $k = 1, \dots, K$:
-    a. For $i \in \mathcal{F}$, draw $T_i^{(k)} \sim \text{N}\big(\mu^{(k-1)}, \sigma^{2(k-1)}\big)\, \text{I}\{T_i \leq t_i - \tau^{(k-1)}\}$.
-    b. For $i \in \mathcal{N}$, draw $T_i^{(k)} \sim \text{N}\big(\mu^{(k-1)}, \sigma^{2(k-1)}\big)\, \text{I}\{T_i > t_i\}$.
-    c. For $i \in \mathcal{M}$, set $T_i^{(k)} = t_i - y_i \tau^{(k-1)}$.
-    d. Draw $\mu^{(k)} \sim \text{N}\big(\bar{T}^{(k)}, \sigma^{2(k-1)}/n\big)\, \text{I}\{100 \leq \mu \leq 160\}$.
-    e. Draw $\sigma^{2(k)} \sim \text{IG}\big(\frac{n}{2} + 1,\; 1 + \frac{1}{2}\sum_{i=1}^n (T_i^{(k)} - \mu^{(k)})^2\big)$.
-        f. Compute $h^{(k)} = \min_{i \in \mathcal{F}} (t_i - T_i^{(k)})$, and $\beta^{(k)}$ and $\gamma^{(k)}$ evaluated at $\mu^{(k)}$ and $\sigma^{2(k)}$. If $\gamma^{(k)} \geq 0$, draw $V \sim \text{Poisson}\big(\gamma^{(k)}\tau^{(k-1)}\big)$ and $W \sim \text{Gamma}\big(\frac{m+1+V}{2}, \beta^{(k)}\big)$; otherwise, draw $U \sim \text{GIG}\big(\frac{1}{2}, 1, (\gamma^{(k)}\tau^{(k-1)})^2\big)$ and $W \sim \text{Gamma}\big(\frac{m+1}{2}, \beta^{(k)} + \frac{(\gamma^{(k)})^2}{2U}\big)$. In both cases, $W$ is truncated to $[50^2, \min(180, h^{(k)})^2]$. Set $\tau^{(k)} = \sqrt{W}$.
-3. After discarding a burn-in period, retain the draws $(\mu^{(k)}, \sigma^{2(k)}, \tau^{(k)})$ as samples from the posterior $\pi(\mu, \sigma^2, \tau \mid \boldsymbol{s}, \boldsymbol{y}, \boldsymbol{t})$. The latent variables $T_i^{(k)}$, $V$ and $U$ are discarded.
+1.  Initialise $\mu^{(0)} \sim \text{U}(100, 160)$, $\sigma^{2(0)} \sim \text{IG}(1, 1)$ and $\tau^{(0)} \sim \text{U}(50, 180)$. Draw $T_i^{(0)}$ for $i \in \mathcal{F} \cup \mathcal{N}$ from their truncated normal conditional distributions, @eq-condT, given these values.
+2.  For $k = 1, \dots, K$:
+    a.  For $i \in \mathcal{F}$, draw $T_i^{(k)} \sim \mathcal{N}\big(\mu^{(k-1)}, \sigma^{2(k-1)}\big)\, \text{I}\{T_i \leq t_i - \tau^{(k-1)}\}$.
+    b.  For $i \in \mathcal{N}$, draw $T_i^{(k)} \sim \mathcal{N}\big(\mu^{(k-1)}, \sigma^{2(k-1)}\big)\, \text{I}\{T_i > t_i\}$.
+    c.  For $i \in \mathcal{M}$, set $T_i^{(k)} = t_i - y_i \tau^{(k-1)}$.
+    d.  Draw $\mu^{(k)} \sim \text{N}\big(\bar{T}^{(k)}, \sigma^{2(k-1)}/n\big)\, \text{I}\{100 \leq \mu \leq 160\}$.
+    e.  Draw $\sigma^{2(k)} \sim \text{IG}\big(\frac{n}{2} + 1,\; 1 + \frac{1}{2}\sum_{i=1}^n (T_i^{(k)} - \mu^{(k)})^2\big)$.
+    f.  Compute $h^{(k)} = \min_{i \in \mathcal{F}} (t_i - T_i^{(k)})$, and $\beta^{(k)}$ and $\gamma^{(k)}$ evaluated at $\mu^{(k)}$ and $\sigma^{2(k)}$. If $\gamma^{(k)} \geq 0$, draw $V \sim \text{Poisson}\big(\gamma^{(k)}\tau^{(k-1)}\big)$ and $W \sim \text{Gamma}\big(\frac{m+1+V}{2}, \beta^{(k)}\big)$; otherwise, draw $U \sim \text{GIG}\big(\frac{1}{2}, 1, (\gamma^{(k)}\tau^{(k-1)})^2\big)$ and $W \sim \text{Gamma}\big(\frac{m+1}{2}, \beta^{(k)} + \frac{(\gamma^{(k)})^2}{2U}\big)$. In both cases, $W$ is truncated to $[50^2, \min(180, h^{(k)})^2]$. Set $\tau^{(k)} = \sqrt{W}$.
+3.  After discarding a burn-in period, retain the draws $(\mu^{(k)}, \sigma^{2(k)}, \tau^{(k)})$ as samples from the posterior $\pi(\mu, \sigma^2, \tau \mid \boldsymbol{s}, \boldsymbol{y}, \boldsymbol{t})$. The latent variables $T_i^{(k)}$, $V$ and $U$ are discarded.
 
 ## Question c
 
@@ -321,3 +321,406 @@ $$e_i\sim\mathcal{N}(0,c \,I)$$ For some constant $c$. However, when back transf
 : Posterior mean estimates and 95% credible intervals for the Type 3 moulting model. {#tbl-mh-estimates}
 
 We
+
+
+# Question c
+
+```{r}
+#| label: setup-c
+#| echo: false
+
+# Load required libraries:
+library(coda)      # MCMC diagnostics
+library(ggplot2)
+library(knitr)
+
+# Load data (path is relative to this .qmd file):
+dat = read.csv("sanderlings.csv")
+
+# Classification scheme from the assignment:
+# 3 = not yet started, 1 = finished, 2 = currently moulting
+dat$status = ifelse(dat$MIndex == 0, 3,
+             ifelse(dat$MIndex == 1, 1, 2))
+
+# The Type 3 model uses only the moulting birds:
+moulting = subset(dat, status == 2)
+day = moulting$Day        # capture day t_i
+y   = moulting$MIndex     # moult index y_i, 0 < y_i < 1
+m   = length(day)         # number of moulting birds
+```
+
+```{r}
+#| label: mh-functions
+#| echo: false
+
+# Log posterior on the original scale, theta = (mu, sigma2, tau):
+log_post = function(theta) {
+  mu = theta[1]; sigma2 = theta[2]; tau = theta[3]
+
+  # Outside the prior support the posterior is 0 (log posterior = -Inf):
+  if (mu <= 100 || mu >= 160 || tau <= 50 || tau >= 180 || sigma2 <= 0) return(-Inf)
+  sigma = sqrt(sigma2)
+
+  # log Q(t_i) = log[Phi(a_i) - Phi(b_i)], computed on the log scale:
+  log_a = pnorm((day - mu) / sigma,       log.p = TRUE)
+  log_b = pnorm((day - tau - mu) / sigma, log.p = TRUE)
+  log_Q = log_a + log1p(-exp(log_b - log_a))
+
+  # Type 3 log-likelihood:
+  log_lik = sum(log(tau) + dnorm(day - y * tau, mean = mu, sd = sigma, log = TRUE) - log_Q)
+
+  # Log prior (uniform priors are constant, IG(1,1) for sigma2):
+  log_prior = -2 * log(sigma2) - 1 / sigma2
+
+  log_lik + log_prior
+}
+
+# Transformations to the unconstrained scale phi:
+logit = function(p) log(p / (1 - p))
+expit = function(x) 1 / (1 + exp(-x))
+
+to_phi = function(theta) c(logit((theta[1] - 100) / 60),
+                           log(theta[2]),
+                           logit((theta[3] - 50) / 130))
+
+to_theta = function(phi) c(100 + 60 * expit(phi[1]),
+                           exp(phi[2]),
+                           50 + 130 * expit(phi[3]))
+
+# Log target on the phi scale = log posterior + log|Jacobian|:
+log_target = function(phi) {
+  p1 = expit(phi[1]); p3 = expit(phi[3])
+  log_jac = log(60 * p1 * (1 - p1)) + phi[2] + log(130 * p3 * (1 - p3))
+  val = log_post(to_theta(phi)) + log_jac
+  if (!is.finite(val)) val = -Inf
+  val
+}
+
+# Random walk Metropolis-Hastings, proposal phi* = phi + e, e ~ N(0, Sigma):
+run_mh = function(phi_start, Sigma, n_iter) {
+  L = t(chol(Sigma))
+  theta_draws = matrix(NA, n_iter, 3, dimnames = list(NULL, c("mu", "sigma2", "tau")))
+  phi_draws   = matrix(NA, n_iter, 3)
+  phi = phi_start
+  lp  = log_target(phi)
+  n_accept = 0
+
+  for (k in 1:n_iter) {
+    phi_prop = phi + as.vector(L %*% rnorm(3))   # propose
+    lp_prop  = log_target(phi_prop)
+    if (log(runif(1)) < lp_prop - lp) {          # accept with prob min(1, r)
+      phi = phi_prop; lp = lp_prop; n_accept = n_accept + 1
+    }
+    phi_draws[k, ]   = phi
+    theta_draws[k, ] = to_theta(phi)
+  }
+  list(theta = theta_draws, phi = phi_draws, accept_rate = n_accept / n_iter)
+}
+
+# Random starting values: mu and tau uniform over their prior ranges,
+# sigma2 log-uniform on (10, 2000):
+random_start = function() {
+  repeat {
+    theta0 = c(runif(1, 100, 160), exp(runif(1, log(10), log(2000))), runif(1, 50, 180))
+    if (is.finite(log_post(theta0))) return(theta0)
+  }
+}
+```
+
+```{r}
+#| label: mh-run
+#| echo: false
+#| cache: true
+
+# Set seed for reproducibility:
+set.seed(2026)
+
+# Pilot run 1: independent proposals, Sigma = 0.05 I
+pilot1 = run_mh(to_phi(random_start()), diag(0.05, 3), 5000)
+
+# Pilot run 2: covariance of the second half of pilot 1, scaled by 2.38^2/d
+d = 3
+Sigma1 = (2.38^2 / d) * cov(pilot1$phi[2501:5000, ]) + diag(1e-8, 3)
+pilot2 = run_mh(pilot1$phi[5000, ], Sigma1, 10000)
+
+# Final (fixed) proposal covariance from pilot 2:
+Sigma_tuned = (2.38^2 / d) * cov(pilot2$phi) + diag(1e-8, 3)
+
+# Main run: 3 chains x 50 000 iterations from random starting values:
+n_iter   = 50000
+n_chains = 3
+starts   = lapply(1:n_chains, function(j) random_start())
+mh_runs  = lapply(starts, function(th0) run_mh(to_phi(th0), Sigma_tuned, n_iter))
+```
+
+```{r}
+#| label: mh-diagnostics
+#| echo: false
+
+# Add sigma = sqrt(sigma2) and store as coda objects:
+mh_all = mcmc.list(lapply(mh_runs, function(r)
+  mcmc(cbind(r$theta, sigma = sqrt(r$theta[, "sigma2"])))))
+
+# Burn-in:
+burn    = 5000
+mh_post = window(mh_all, start = burn + 1)
+
+# Convergence diagnostics on the retained draws:
+rhat = gelman.diag(mh_post, multivariate = FALSE)$psrf[, "Point est."]
+ess  = effectiveSize(mh_post)
+
+# All chains stacked:
+mh_mat = as.matrix(mh_post)
+
+# Posterior summaries:
+post_summary = function(M) {
+  t(apply(M, 2, function(x) c(mean   = mean(x),
+                              sd     = sd(x),
+                              q2.5   = unname(quantile(x, 0.025)),
+                              median = median(x),
+                              q97.5  = unname(quantile(x, 0.975)))))
+}
+mh_summary = post_summary(mh_mat)
+
+# Values used in the text:
+acc_rates = sapply(mh_runs, function(r) r$accept_rate)
+cor_mat   = cor(mh_mat[, c("mu", "sigma2", "tau")])
+```
+
+```{r}
+#| label: tbl-mh-chains
+#| tbl-cap: "Random starting values and acceptance rates of the three Metropolis-Hastings chains."
+#| echo: false
+
+chain_tab = data.frame(
+  Chain      = 1:n_chains,
+  mu0        = sapply(starts, function(s) s[1]),
+  sigma20    = sapply(starts, function(s) s[2]),
+  tau0       = sapply(starts, function(s) s[3]),
+  Acceptance = acc_rates
+)
+colnames(chain_tab) = c("Chain", "$\\mu^{(0)}$", "$\\sigma^{2(0)}$", "$\\tau^{(0)}$", "Acceptance rate")
+
+kable(chain_tab, digits = 2, escape = FALSE)
+```
+
+```{r}
+#| label: fig-mh-trace
+#| fig-cap: "Trace plots of the three Metropolis-Hastings chains for the first 8 000 iterations. The burn-in is indicated by the dashed line."
+#| fig-width: 7
+#| fig-height: 6
+#| echo: false
+
+n_show = 8000
+p_lab  = c(mu = "mu", sigma2 = "sigma^2", tau = "tau")
+
+trace_df = do.call(rbind, lapply(1:n_chains, function(j) {
+  th = mh_runs[[j]]$theta[1:n_show, ]
+  data.frame(iteration = rep(1:n_show, 3),
+             value     = c(th[, "mu"], th[, "sigma2"], th[, "tau"]),
+             parameter = factor(rep(p_lab, each = n_show), levels = p_lab),
+             chain     = factor(j))
+}))
+
+ggplot(trace_df, mapping = aes(x = iteration, y = value, colour = chain)) +
+  geom_line(linewidth = 0.2, alpha = 0.7) +
+  geom_vline(xintercept = burn, colour = "black", linetype = "dashed") +
+  facet_wrap(~ parameter, scales = "free_y", ncol = 1, labeller = label_parsed) +
+  scale_colour_manual(values = c("purple", "deeppink", "steelblue")) +
+  labs(x = "Iteration", y = "Value", colour = "Chain") +
+  theme_bw(base_size = 10) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| label: fig-mh-gelman
+#| fig-cap: "Gelman-Rubin shrink factor as a function of the number of iterations."
+#| fig-width: 7
+#| fig-height: 3
+#| echo: false
+
+par(mfrow = c(1, 3), mar = c(4, 4, 2, 1))
+gelman.plot(mh_all[, c("mu", "sigma2", "tau")], ylab = "Shrink factor",
+            auto.layout = FALSE)
+```
+
+```{r}
+#| label: fig-mh-acf
+#| fig-cap: "Autocorrelation of the retained draws of the first Metropolis-Hastings chain."
+#| fig-width: 7
+#| fig-height: 2.5
+#| echo: false
+
+acf_df = do.call(rbind, lapply(names(p_lab), function(p) {
+  a = acf(as.numeric(mh_post[[1]][, p]), lag.max = 100, plot = FALSE)
+  data.frame(lag = as.numeric(a$lag), acf = as.numeric(a$acf),
+             parameter = factor(p_lab[p], levels = p_lab))
+}))
+
+ggplot(acf_df, mapping = aes(x = lag, y = acf)) +
+  geom_segment(aes(xend = lag, yend = 0), colour = "purple") +
+  geom_hline(yintercept = 0) +
+  facet_wrap(~ parameter, nrow = 1, labeller = label_parsed) +
+  labs(x = "Lag", y = "Autocorrelation") +
+  theme_bw(base_size = 10)
+```
+
+```{r}
+#| label: tbl-mh
+#| tbl-cap: "Posterior summaries for the Type 3 model obtained using the tuned random walk Metropolis-Hastings algorithm (3 chains, 45 000 retained draws each)."
+#| echo: false
+
+mh_tab = data.frame(mh_summary,
+                    ESS  = round(ess[rownames(mh_summary)]),
+                    Rhat = rhat[rownames(mh_summary)])
+colnames(mh_tab) = c("Mean", "SD", "2.5%", "Median", "97.5%", "ESS", "$\\hat{R}$")
+rownames(mh_tab) = c("$\\mu$", "$\\sigma^2$", "$\\tau$", "$\\sigma$")
+
+kable(mh_tab, digits = 2, escape = FALSE)
+```
+
+```{r}
+#| label: fig-mh-post
+#| fig-cap: "Marginal posterior distributions of the Type 3 model parameters from the Metropolis-Hastings draws."
+#| fig-width: 7
+#| fig-height: 2.5
+#| echo: false
+
+post_df = data.frame(
+  value     = c(mh_mat[, "mu"], mh_mat[, "sigma2"], mh_mat[, "tau"]),
+  parameter = factor(rep(p_lab, each = nrow(mh_mat)), levels = p_lab)
+)
+
+ggplot(post_df, mapping = aes(x = value)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 60,
+                 fill = "purple", alpha = 0.4, colour = NA) +
+  geom_density(colour = "purple", linewidth = 0.7) +
+  facet_wrap(~ parameter, scales = "free", nrow = 1, labeller = label_parsed) +
+  labs(x = "Value", y = "Posterior density") +
+  theme_bw(base_size = 10)
+```
+
+```{r}
+#| label: fig-mh-joint
+#| fig-cap: "Joint posterior draws of the mean start date and duration of moult (every 20th draw shown)."
+#| fig-width: 4.5
+#| fig-height: 3.5
+#| echo: false
+
+idx = seq(1, nrow(mh_mat), by = 20)
+joint_df = data.frame(mu = mh_mat[idx, "mu"], tau = mh_mat[idx, "tau"])
+
+ggplot(joint_df, mapping = aes(x = mu, y = tau)) +
+  geom_point(size = 0.3, alpha = 0.2, colour = "deeppink") +
+  labs(x = expression(mu), y = expression(tau)) +
+  theme_bw(base_size = 10)
+```
+
+# Question d
+
+```{r}
+#| label: stan-model
+#| echo: false
+
+# Type 3 model written in Stan:
+modelString = "
+  data {
+    int<lower=1> m;                    // number of moulting birds
+    vector[m] t;                       // capture day of each bird
+    vector<lower=0, upper=1>[m] y;     // moult index
+  }
+
+  parameters {
+    real<lower=100, upper=160> mu;     // mean start date of moult
+    real<lower=0> sigma2;              // variance of start dates
+    real<lower=50, upper=180> tau;     // duration of moult
+  }
+
+  transformed parameters {
+    real<lower=0> sigma = sqrt(sigma2);
+  }
+
+  model {
+    // Priors:
+    mu     ~ uniform(100, 160);
+    sigma2 ~ inv_gamma(1, 1);
+    tau    ~ uniform(50, 180);
+
+    // Likelihood:
+    for (i in 1:m) {
+      // log Q(t_i), computed stably with log_diff_exp
+      real logQ = log_diff_exp(normal_lcdf(t[i] | mu, sigma),
+                               normal_lcdf(t[i] - tau | mu, sigma));
+      target += log(tau) + normal_lpdf(t[i] - y[i] * tau | mu, sigma) - logQ;
+    }
+  }
+"
+```
+
+```{r}
+#| label: stan-fit
+#| echo: false
+#| cache: true
+
+library(rstan)
+rstan_options(auto_write = TRUE)
+
+# Translate the model to C++ and compile:
+stan_mod = stan_model(model_code = modelString)
+
+# Specify data:
+stan_data = list(
+  m = m, 
+  t = day, 
+  y = y)
+
+# Generate posterior sample:
+stanFit = sampling(stan_mod, 
+                    data = stan_data,
+                    chains = 3, 
+                    iter = 52000, 
+                    warmup = 2000, 
+                    thin = 1,
+                    seed = 2026)
+```
+
+```{r}
+#| label: tbl-stan
+#| tbl-cap: "Posterior summaries for the Type 3 model obtained using Stan (NUTS), based on 3 chains of 50 000 post-warmup draws."
+#| echo: false
+
+stan_sum = summary(stanFit, pars = c("mu", "sigma2", "tau", "sigma"),
+                   probs = c(0.025, 0.5, 0.975))$summary
+
+stan_tab = data.frame(stan_sum[, c("mean", "sd", "2.5%", "50%", "97.5%", "n_eff", "Rhat")])
+colnames(stan_tab) = c("Mean", "SD", "2.5%", "Median", "97.5%", "ESS", "$\\hat{R}$")
+rownames(stan_tab) = c("$\\mu$", "$\\sigma^2$", "$\\tau$", "$\\sigma$")
+stan_tab$ESS = round(stan_tab$ESS)
+
+knitr::kable(stan_tab, digits = 2, escape = FALSE)
+```
+
+```{r}
+#| label: fig-stan-trace
+#| fig-cap: "Trace plots of the three Stan chains for the first 4 000 iterations. The shaded region is the warmup period (2 000 iterations), which is discarded."
+#| fig-width: 8
+#| fig-height: 3.5
+#| echo: false
+
+rstan::traceplot(stanFit, 
+                 pars = c("mu", "sigma2", "tau"),
+                 inc_warmup = TRUE, 
+                 window = c(1, 10000)) +
+  scale_colour_manual(values = c("purple", "deeppink", "steelblue")) +
+  labs(x = "Iteration", y = "Value", colour = "Chain") +
+  theme_bw(base_size = 10) +
+  theme(legend.position = "bottom")
+```
+
+```{r}
+#| label: stan-diagnostics
+#| echo: false
+
+n_div = sum(get_divergent_iterations(stanFit))              # should be 0
+n_td  = sum(get_max_treedepth_iterations(stanFit))          # should be 0
+```
