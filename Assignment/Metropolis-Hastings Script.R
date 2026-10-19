@@ -125,46 +125,128 @@ random_init <- function(y, t) {
   }
 }
 
+library(moult)
+library(coda)
+
+data(sanderlings) 
+dat <- sanderlings[sanderlings$MIndex!=0 & sanderlings$MIndex!=1,]
+
 ## ---------------------------------------------------------------
-## 7. Simulated Type 3 data (replace with your own y and t)
+## 1. Run three chains from random (prior-based) starting values
 ## ---------------------------------------------------------------
-set.seed(1)
-mu_true <- 130; sigma2_true <- 100; tau_true <- 100
-y <- numeric(0); t <- numeric(0)
-while (length(y) < 200) {
-  ti <- runif(1, 80, 260)                      # capture date
-  Ti <- rnorm(1, mu_true, sqrt(sigma2_true))   # start of moult
-  yi <- (ti - Ti) / tau_true                   # moult index
-  if (yi > 0 && yi < 1) {                      # only moulting birds recorded
-    y <- c(y, yi); t <- c(t, ti)
+set.seed(2026)
+n_chains <- 3
+n_iter   <- 50000
+y_obs <- dat$MIndex
+t_obs <- dat$Day
+
+# Retry with a fresh start if the burn-in covariance comes out degenerate
+run_chain <- function() {
+  repeat {
+    init <- random_init(y_obs, t_obs)
+    fit  <- tryCatch(MH_Type_3(y_obs, t_obs, init = init, iterations = n_iter),
+                     error = function(e) NULL)
+    if (!is.null(fit)) { fit$init <- init; return(fit) }
+  }
+}
+fits <- lapply(seq_len(n_chains), function(i) run_chain())
+
+pars <- c("mu", "sigma2", "tau")
+cols <- c("firebrick", "steelblue", "darkgreen")
+
+## ---------------------------------------------------------------
+## 2. Acceptance rates and starting values
+## ---------------------------------------------------------------
+accept_tab <- data.frame(
+  chain       = seq_len(n_chains),
+  burn_accept = sapply(fits, `[[`, "burn_accept"),
+  main_accept = sapply(fits, `[[`, "accept_rate"),
+  init_mu     = sapply(fits, function(f) f$init[1]),
+  init_sigma2 = sapply(fits, function(f) f$init[2]),
+  init_tau    = sapply(fits, function(f) f$init[3])
+)
+print(accept_tab, digits = 3, row.names = FALSE)
+
+## ---------------------------------------------------------------
+## 3. Convergence: Gelman-Rubin (R-hat) and effective sample size
+## ---------------------------------------------------------------
+chains <- mcmc.list(lapply(fits, function(f) mcmc(f$draws)))
+
+gelman.diag(chains, autoburnin = FALSE, multivariate = FALSE)  # R-hat per parameter
+effectiveSize(chains)                                          # ESS summed over chains
+gelman.plot(chains, autoburnin = FALSE)                        # R-hat as iterations accumulate
+
+## ---------------------------------------------------------------
+## 4. Trace plots (all chains overlaid; thinned for plotting only)
+## ---------------------------------------------------------------
+idx <- seq(1, n_iter, by = 10)
+par(mfrow = c(3, 1), mar = c(4, 4, 2, 1))
+for (p in pars) {
+  plot(idx, fits[[1]]$draws[idx, p], type = "l", col = cols[1],
+       ylim = range(sapply(fits, function(f) range(f$draws[idx, p]))),
+       xlab = "Iteration", ylab = p, main = paste("Trace:", p))
+  for (k in 2:n_chains) lines(idx, fits[[k]]$draws[idx, p], col = cols[k])
+}
+
+## ---------------------------------------------------------------
+## 5. Marginal posteriors (per-chain densities + pooled histogram)
+## ---------------------------------------------------------------
+pooled <- do.call(rbind, lapply(fits, `[[`, "draws"))
+
+par(mfrow = c(1, 3), mar = c(4, 4, 2, 1))
+for (p in pars) {
+  hist(pooled[, p], breaks = 60, freq = FALSE, col = "grey90", border = "grey70",
+       main = paste("Posterior:", p), xlab = p)
+  for (k in seq_len(n_chains)) lines(density(fits[[k]]$draws[, p]), col = cols[k], lwd = 1.5)
+  abline(v = quantile(pooled[, p], c(0.025, 0.975)), lty = 2)
+}
+
+## ---------------------------------------------------------------
+## 6. Bivariate plots: how the parameters covary
+## ---------------------------------------------------------------
+thin_pool <- pooled[seq(1, nrow(pooled), by = 20), ]
+
+panel_cor <- function(x, y, ...) {
+  usr <- par("usr"); on.exit(par(usr = usr))
+  par(usr = c(0, 1, 0, 1))
+  text(0.5, 0.5, sprintf("r = %.2f", cor(x, y)), cex = 1.6)
+}
+panel_pts <- function(x, y, ...) points(x, y, pch = 16, cex = 0.4, col = rgb(0, 0, 0, 0.15))
+panel_hist <- function(x, ...) {
+  usr <- par("usr"); on.exit(par(usr = usr))
+  h <- hist(x, plot = FALSE, breaks = 40)
+  par(usr = c(usr[1:2], 0, max(h$counts) * 1.5))
+  rect(h$breaks[-length(h$breaks)], 0, h$breaks[-1], h$counts, col = "grey80")
+}
+pairs(thin_pool, lower.panel = panel_pts, upper.panel = panel_cor,
+      diag.panel = panel_hist, labels = pars,
+      main = "Pairwise joint posterior (pooled chains, thinned)")
+
+## ---------------------------------------------------------------
+## 7. Autocorrelation plots (every chain overlaid)
+## ---------------------------------------------------------------
+par(mfrow = c(1, 3), mar = c(4, 4, 2, 1))
+for (p in pars) {
+  plot(NA, xlim = c(0, 100), ylim = c(-0.1, 1), xlab = "Lag", ylab = "ACF",
+       main = paste("ACF:", p))
+  abline(h = 0, lty = 3)
+  for (k in seq_len(n_chains)) {
+    a <- acf(fits[[k]]$draws[, p], lag.max = 100, plot = FALSE)
+    lines(a$lag[, 1, 1], a$acf[, 1, 1], col = cols[k], lwd = 1.5)
   }
 }
 
 ## ---------------------------------------------------------------
-## 8. Run three chains from random starts
+## 8. Summary table (pooled) with ESS
 ## ---------------------------------------------------------------
-n_chains <- 3
-fits <- lapply(seq_len(n_chains), function(k) {
-  MH_Type_3(y, t, init = random_init(y, t), iterations = 50000)
-})
-
-sapply(fits, function(f) c(burn_accept = f$burn_accept, accept = f$accept_rate))
-
-## Quick look at the first chain
-colMeans(fits[[1]]$draws)
-plot(fits[[1]]$draws[, "tau"], type = "l", ylab = "tau", main = "Trace: tau (chain 1)")
-
-library(moult)
-
-data(sanderlings) 
-dat <- sanderlings[sanderlings$MIndex!=0 & sanderlings$MIndex!=1,]
-run <- MH_Type_3(dat$MIndex,dat$Day,init = c(110,150,100))
-
-results <- data.frame(
-  Parameter = c("mu", "sigma2", "tau"),
-  Mean = apply(run$draws, 2, mean),
-  Lower_95 = apply(run$draws, 2, quantile, probs = 0.025),
-  Upper_95 = apply(run$draws, 2, quantile, probs = 0.975)
+ess <- effectiveSize(chains)
+summary_tab <- data.frame(
+  Parameter = pars,
+  Mean      = colMeans(pooled),
+  SD        = apply(pooled, 2, sd),
+  Q2.5      = apply(pooled, 2, quantile, 0.025),
+  Median    = apply(pooled, 2, quantile, 0.5),
+  Q97.5     = apply(pooled, 2, quantile, 0.975),
+  ESS       = as.numeric(ess[pars])
 )
-
-print(results, row.names = FALSE, digits = 4)
+print(summary_tab, digits = 4, row.names = FALSE)

@@ -97,7 +97,7 @@ $$
 \pi(\mu, \sigma^2, \tau \mid \boldsymbol{s}, \boldsymbol{y}, \boldsymbol{t}) \propto \prod_{i \in \mathcal{F}} R(t_i) \, \prod_{i \in \mathcal{M}} \tau f_T(t_i - y_i\tau) \, \prod_{i \in \mathcal{N}} P(t_i) \, \pi(\mu) \, \pi(\sigma^2) \, \pi(\tau),
 $$ {#eq-post2}
 
-with the following prior distributions 
+with the following prior distributions
 
 $$
 \mu \sim \text{Uniform}(100,160), \quad \sigma^2 \sim \text{IG}(1,1), \quad \tau \sim \text{Uniform}(50,180).
@@ -153,7 +153,7 @@ $$ {#eq-condT}
 
 ### Conditional distribution of $\mu$
 
-From @eq-augpost, the full conditional distribution of $\mu$ is 
+From @eq-augpost, the full conditional distribution of $\mu$ is
 
 $$
 \begin{aligned}
@@ -191,7 +191,7 @@ For the moulting birds, $T_i = t_i - y_i\tau$ is used in $\bar{T}$.
 
 ### Conditional distribution of $\sigma^2$
 
-Let $S = \sum_{i=1}^n (T_i - \mu)^2$. From @eq-augpost, the full conditional distribution of $\sigma^2$ is 
+Let $S = \sum_{i=1}^n (T_i - \mu)^2$. From @eq-augpost, the full conditional distribution of $\sigma^2$ is
 
 $$
 \begin{aligned}
@@ -233,7 +233,7 @@ $$
 \sum_{i \in \mathcal{M}} (t_i - \mu - y_i\tau)^2 = \sum_{i \in \mathcal{M}} (t_i - \mu)^2 - 2\tau \sum_{i \in \mathcal{M}} y_i (t_i - \mu) + \tau^2 \sum_{i \in \mathcal{M}} y_i^2,
 $$
 
-where the first term does not depend on $\tau$. Thus, 
+where the first term does not depend on $\tau$. Thus,
 
 $$
 \prod_{i \in \mathcal{M}} \tau f_T(t_i - y_i\tau) \propto \tau^m \exp\left(-\beta\tau^2 + \gamma\tau\right),
@@ -304,25 +304,276 @@ In both cases, the truncated gamma distribution can be sampled exactly using the
 
 ## Question c
 
+```{r, echo=FALSE}
+library(mvtnorm)
+
+## ---------------------------------------------------------------
+## 1. Type 3 log-likelihood (sigma2 is a variance)
+## ---------------------------------------------------------------
+log_diff_exp <- function(la, lb) la + log1p(-exp(lb - la))
+
+Type_3_Log_Likelihood <- function(y, t, mu, sigma2, tau) {
+  sd <- sqrt(sigma2)
+  b  <- (t - mu) / sd
+  a  <- (t - tau - mu) / sd
+  
+  logQ <- ifelse(
+    a > 0,
+    log_diff_exp(pnorm(a, lower.tail = FALSE, log.p = TRUE),
+                 pnorm(b, lower.tail = FALSE, log.p = TRUE)),
+    log_diff_exp(pnorm(b, log.p = TRUE),
+                 pnorm(a, log.p = TRUE))
+  )
+  
+  out <- sum(log(tau) + dnorm(t - y * tau, mu, sd, log = TRUE) - logQ)
+  if (!is.finite(out)) -Inf else out
+}
+
+## ---------------------------------------------------------------
+## 2. Parameter transforms: (mu, sigma2, tau) <-> real line
+## ---------------------------------------------------------------
+to_real <- function(theta) {
+  c(qlogis((theta[1] - 100) / 60),
+    log(theta[2]),
+    qlogis((theta[3] - 50) / 130))
+}
+
+from_real <- function(phi) {
+  c(100 + 60 * plogis(phi[1]),
+    exp(phi[2]),
+    50 + 130 * plogis(phi[3]))
+}
+
+## ---------------------------------------------------------------
+## 3. Log posterior on the transformed scale (priors + Jacobians)
+## ---------------------------------------------------------------
+log_target <- function(phi, y, t) {
+  theta <- from_real(phi)
+  ll <- Type_3_Log_Likelihood(y, t, theta[1], theta[2], theta[3])
+  if (!is.finite(ll)) return(-Inf)
+  
+  # Uniform priors x logit Jacobians (constants dropped)
+  lp_mu  <- plogis(phi[1], log.p = TRUE) + plogis(-phi[1], log.p = TRUE)
+  lp_tau <- plogis(phi[3], log.p = TRUE) + plogis(-phi[3], log.p = TRUE)
+  # IG(1,1) prior on sigma2 times Jacobian sigma2
+  lp_s2  <- -phi[2] - exp(-phi[2])
+  
+  ll + lp_mu + lp_s2 + lp_tau
+}
+
+## ---------------------------------------------------------------
+## 4. Core MH loop: one step per row of `jitters` (symmetric proposals)
+## ---------------------------------------------------------------
+mh_run <- function(phi, jitters, y, t) {
+  n   <- nrow(jitters)
+  cur <- log_target(phi, y, t)
+  if (!is.finite(cur)) stop("Starting value has zero density; redraw init.")
+  
+  phi_draws <- matrix(NA_real_, n, 3)
+  accepted  <- logical(n)
+  
+  for (i in seq_len(n)) {
+    prop      <- phi + jitters[i, ]
+    prop_val  <- log_target(prop, y, t)
+    log_alpha <- if (is.finite(prop_val)) min(0, prop_val - cur) else -Inf
+    
+    if (log(runif(1)) < log_alpha) {
+      phi <- prop
+      cur <- prop_val
+      accepted[i] <- TRUE
+    }
+    phi_draws[i, ] <- phi
+  }
+  list(phi_draws = phi_draws, last = phi, accept_rate = mean(accepted))
+}
+
+## ---------------------------------------------------------------
+## 5. Two-phase sampler
+##    Phase 1: burn-in with isotropic jitter -> covariance of phi draws
+##    Phase 2: all iterations retained, proposals ~ N(0, scale * Sigma)
+## ---------------------------------------------------------------
+MH_Type_3 <- function(y, t, init, iterations = 50000,
+                      burn = 3000, burn_sd = 0.5,
+                      cov_frac = 0.5,
+                      scale = 2.38^2 / 3) {
+  
+  phi0 <- to_real(init)
+  
+  # Phase 1
+  burn_jit <- rmvnorm(burn, mean = rep(0, 3), sigma = burn_sd^2 * diag(3))
+  b <- mh_run(phi0, burn_jit, y, t)
+  
+  keep  <- seq.int(floor(burn * (1 - cov_frac)) + 1, burn)
+  Sigma <- cov(b$phi_draws[keep, , drop = FALSE])
+  if (any(!is.finite(Sigma)) || det(Sigma) < 1e-12)
+    stop("Burn-in covariance is degenerate (chain barely moved?). Reduce burn_sd and retry.")
+  
+  # Phase 2
+  main_jit <- rmvnorm(iterations, mean = rep(0, 3), sigma = scale * Sigma)
+  m <- mh_run(b$last, main_jit, y, t)
+  
+  draws <- t(apply(m$phi_draws, 1, from_real))
+  colnames(draws) <- c("mu", "sigma2", "tau")
+  
+  list(draws       = draws,          # original scale, retained
+       phi_draws   = m$phi_draws,    # transformed scale
+       Sigma       = Sigma,          # tuned covariance (transformed space)
+       burn_accept = b$accept_rate,
+       accept_rate = m$accept_rate)
+}
+
+## ---------------------------------------------------------------
+## 6. Random starting values from the prior ranges (redraw if bad)
+## ---------------------------------------------------------------
+random_init <- function(y, t) {
+  repeat {
+    init <- c(runif(1, 100, 160), 1 / rgamma(1, 1, 1), runif(1, 50, 180))
+    if (is.finite(log_target(to_real(init), y, t))) return(init)
+  }
+}
+```
+
 We sample from the likelihood surface using a Metropolis Hastings algorithm. However we have the problem that the steps of our random walk are drawn a multivariate normal distribution. But each of our three parameters do not have support over the entire real line: $\mu$, which determines the average start time, is constrained by a uniform prior to be situated between 100--160; $\tau$, which determines the speed of moulting, is also contrainted by its prior to be situated within 50--180; finally the variance is strictly positive. We define the following transformations:\
 $$\begin{aligned}
 f(\mu)&=\text{logit} \frac{\mu-100}{60}\\
 g(\tau)&=\text{logit} \frac{\tau-50}{130}\\
 h(\sigma^2)&= \log \sigma^2
 \end{aligned}$$ These transformation each have support over the entire real line; thus we may perform our random walk over this transformed space. Since we are unsure how our parameters are correlated; to begin with, the steps of our random walk are drawn from:\
-$$e_i\sim\mathcal{N}(0,c \,I)$$ For some constant $c$. However, when back transform (let $\theta$ be our original parameters and $\phi$ their transformations) we must include the jacobian term in the posterior likelihood in order to ensure that the Metropolis-Hasting algorithm converges to the appropriate likelihood; the log-likelihood becomes: $$L(\theta)+\log(\pi(\theta))+\log|J(\phi)|$$ Where $J(\phi)$ is the Jacobian of our transformation. However, we would like to tune our random walk to have a more appropriate covaraince matrix; to achieve this we utilize 3000 burnin iterations and estimate the covariance matrix $\Sigma$ of our transformed parameters on these iterations. Them each of our retained draws each have their random walk drawn from: $$e\sim\mathcal{N}(0,\Sigma)$$ And the Metropolis Hastings algorithm algorithm proceeds as per usual. We obtain the following estimates of our parameters and as well as 95% credible intervals on them:
+$$e_i\sim\mathcal{N}(0,c \,I)$$ For some constant $c$. However, when back transform (let $\theta$ be our original parameters and $\phi$ their transformations) we must include the jacobian term in the posterior likelihood in order to ensure that the Metropolis-Hasting algorithm converges to the appropriate likelihood; the log-likelihood becomes: $$L(\theta)+\log(\pi(\theta))+\log|J(\phi)|$$ Where $J(\phi)$ is the Jacobian of our transformation. However, we would like to tune our random walk to have a more appropriate covariance matrix; to achieve this we utilize 3000 burn-in iterations and estimate the covariance matrix $\Sigma$ of our transformed parameters on these iterations. Then each of our retained draws each have their random walk drawn from: $$e\sim\mathcal{N}(0,\Sigma)$$ And the Metropolis Hastings algorithm algorithm proceeds as per usual.\\
 
-| Parameter                  | Posterior mean | 2.5% quantile | 97.5% quantile |
-|:---------------------------|---------------:|--------------:|---------------:|
-| Mean start time ($\mu$)    |         130.67 |        114.61 |         152.40 |
-| Variance ($\sigma\^2$)     |         317.18 |        195.19 |         525.00 |
-| Moulting duration ($\tau$) |          92.79 |         56.43 |         128.40 |
+We will run 50,000 iterations on three chains which are each randomly initialized: $\mu$ and $\tau$ a drawn from uniform distributions and $\sigma^2$ drawn from $\text{IG}(1,1)$. The initial values for our chains as well as the acceptance rates for our MH sampler can be seen below:
 
-: Posterior mean estimates and 95% credible intervals for the Type 3 moulting model. {#tbl-mh-estimates}
+```{r, echo=FALSE}
+library(moult)
+library(coda)
 
-We
+data(sanderlings) 
+dat <- sanderlings[sanderlings$MIndex!=0 & sanderlings$MIndex!=1,]
 
+## ---------------------------------------------------------------
+## 1. Run three chains from random (prior-based) starting values
+## ---------------------------------------------------------------
+set.seed(2026)
+n_chains <- 3
+n_iter   <- 50000
+y_obs <- dat$MIndex
+t_obs <- dat$Day
 
+# Retry with a fresh start if the burn-in covariance comes out degenerate
+run_chain <- function() {
+  repeat {
+    init <- random_init(y_obs, t_obs)
+    fit  <- tryCatch(MH_Type_3(y_obs, t_obs, init = init, iterations = n_iter),
+                     error = function(e) NULL)
+    if (!is.null(fit)) { fit$init <- init; return(fit) }
+  }
+}
+fits <- lapply(seq_len(n_chains), function(i) run_chain())
+
+pars <- c("mu", "sigma2", "tau")
+cols <- c("firebrick", "steelblue", "darkgreen")
+
+## ---------------------------------------------------------------
+## 2. Acceptance rates and starting values
+## ---------------------------------------------------------------
+accept_tab <- data.frame(
+  chain       = seq_len(n_chains),
+  burn_accept = sapply(fits, `[[`, "burn_accept"),
+  main_accept = sapply(fits, `[[`, "accept_rate"),
+  init_mu     = sapply(fits, function(f) f$init[1]),
+  init_sigma2 = sapply(fits, function(f) f$init[2]),
+  init_tau    = sapply(fits, function(f) f$init[3])
+)
+kableExtra::kable(accept_tab,digits = 2)
+```
+The acceptance rates of $0.21$ suggests that the step sizes of our random walk are neither to small (which would results in high acceptance rates) nor too large (which would result in low acceptance rates by jumping into sparse areas of the density) and that our covariance matrix was adequately tuned in the burn-in draws. To assess the convergence of our chains obtain our $\hat{R}$ statistic and can inspect the gelman plot of our chains:
+```{r, echo=FALSE}
+## ---------------------------------------------------------------
+## 3. Convergence: Gelman-Rubin (R-hat) and effective sample size
+## ---------------------------------------------------------------
+chains <- mcmc.list(lapply(fits, function(f) mcmc(f$draws)))
+
+gelman.plot(chains, autoburnin = FALSE)                        # R-hat as iterations accumulate
+```
+We find that $\hat{R}\approx 1$ for each of our parameters and conclude that our MH sampler has converged; alternatively we can inspect the trace plots of each of our parameters:
+```{r, echo=FALSE}
+
+## ---------------------------------------------------------------
+## 4. Trace plots (all chains overlaid; thinned for plotting only)
+## ---------------------------------------------------------------
+idx <- seq(1, n_iter, by = 10)
+par(mfrow = c(3, 1), mar = c(4, 4, 2, 1))
+for (p in pars) {
+  plot(idx, fits[[1]]$draws[idx, p], type = "l", col = cols[1],
+       ylim = range(sapply(fits, function(f) range(f$draws[idx, p]))),
+       xlab = "Iteration", ylab = p, main = paste("Trace:", p))
+  for (k in 2:n_chains) lines(idx, fits[[k]]$draws[idx, p], col = cols[k])
+}
+```
+And conclude that the traceplots are stationary from visual inspection. We should note, however, that the effective sample size of our MH sampler is likely much smaller than the chosen number of iterations because of autocorrelation in the draws; inspection the ACF plots of our  draws:
+```{r, echo=FALSE}
+## ---------------------------------------------------------------
+## 7. Autocorrelation plots (every chain overlaid)
+## ---------------------------------------------------------------
+par(mfrow = c(1, 3), mar = c(4, 4, 2, 1))
+for (p in pars) {
+  plot(NA, xlim = c(0, 100), ylim = c(-0.1, 1), xlab = "Lag", ylab = "ACF",
+       main = paste("ACF:", p))
+  abline(h = 0, lty = 3)
+  for (k in seq_len(n_chains)) {
+    a <- acf(fits[[k]]$draws[, p], lag.max = 100, plot = FALSE)
+    lines(a$lag[, 1, 1], a$acf[, 1, 1], col = cols[k], lwd = 1.5)
+  }
+}
+```
+That is, it takes $\approx100$ iterations before draws become uncorrelated; for this reason, it's unsurprising that the effect sample sizes of our chains are:
+```{r,echo=FALSE}
+effectiveSize(chains)
+```
+Which are much smaller than the number of retained draw. Finally, we obtain our posterior estimates and 95\% credibility intervals for each of our three parameters:
+```{r, echo=FALSE}
+## ---------------------------------------------------------------
+## 8. Summary table (pooled) with ESS
+## ---------------------------------------------------------------
+pooled <- do.call(rbind, lapply(fits, `[[`, "draws"))
+
+ess <- effectiveSize(chains)
+summary_tab <- data.frame(
+  Parameter = pars,
+  Mean      = colMeans(pooled),
+  SD        = apply(pooled, 2, sd),
+  Q2.5      = apply(pooled, 2, quantile, 0.025),
+  Median    = apply(pooled, 2, quantile, 0.5),
+  Q97.5     = apply(pooled, 2, quantile, 0.975),
+  ESS       = as.numeric(ess[pars])
+)
+kableExtra::kable(summary_tab, digits = 2, row.names = FALSE)
+```
+We can more directly inspect the marginal densities and bivariate distributions by the figures below:
+```{r, echo=FALSE}
+## ---------------------------------------------------------------
+## 6. Bivariate plots: how the parameters covary
+## ---------------------------------------------------------------
+thin_pool <- pooled[seq(1, nrow(pooled), by = 20), ]
+
+panel_cor <- function(x, y, ...) {
+  usr <- par("usr"); on.exit(par(usr = usr))
+  par(usr = c(0, 1, 0, 1))
+  text(0.5, 0.5, sprintf("r = %.2f", cor(x, y)), cex = 1.6)
+}
+panel_pts <- function(x, y, ...) points(x, y, pch = 16, cex = 0.4, col = rgb(0, 0, 0, 0.15))
+panel_hist <- function(x, ...) {
+  usr <- par("usr"); on.exit(par(usr = usr))
+  h <- hist(x, plot = FALSE, breaks = 40)
+  par(usr = c(usr[1:2], 0, max(h$counts) * 1.5))
+  rect(h$breaks[-length(h$breaks)], 0, h$breaks[-1], h$counts, col = "grey80")
+}
+pairs(thin_pool, lower.panel = panel_pts, upper.panel = panel_cor,
+      diag.panel = panel_hist, labels = pars,
+      main = "Pairwise joint posterior (pooled chains, thinned)")
+
+```
+We should note that the credibility intervals on our estimate for $\mu$ are quite wide and spans almost the entire interval defined by the prior, the posterior estimate of 130 is unsurprising given that almost all of the birds were caught on day 127; the outliers situated beyond the prior interval likely explains the wide credibility interval. The credibility interval for $\tau$ however appears to be notably narrower than its prior. We note that while $\mu$ and $\sigma^2$ appear to be broadly uncorrelated, $\tau$ is weakly correlated with $\sigma^2$ ($\rho=0.31$) and strongly correlated with $\mu$ ($\rho=-0.81$); this is expected since $\tau$ and $\mu$ are related by $\mu=t-y\tau$, which also suggests that the spread in start dates scales with $\tau$.
 # Question c
 
 ```{r}
@@ -333,6 +584,8 @@ We
 library(coda)      # MCMC diagnostics
 library(ggplot2)
 library(knitr)
+library(rstan)
+rstan_options(auto_write = TRUE)
 
 # Load data (path is relative to this .qmd file):
 dat = read.csv("sanderlings.csv")
