@@ -156,7 +156,6 @@ In the Type 1 model, $\tau$ appears only in the indicators and has a uniform con
 
 Sampling from @eq-condtau is simplified by a further data augmentation step based on Lemma 5 of Sun et al. (2021), the form of which depends on the sign of $\gamma$. Since $y_i > 0$ and $\sigma^2 > 0$, $\gamma \geq 0$ if and only if $\mu \leq \bar{t}_y$. For the `sanderlings` data, $\bar{t}_y = 164.4$, which exceeds the upper prior bound of $\mu$. Thus, $\gamma > 0$ at every iteration and a latent variable $W$ is introduced such that
 
-
 $$
 \begin{aligned}
 W \mid \tau &\sim \text{Poisson}(\gamma\tau), \\
@@ -164,7 +163,7 @@ W \mid \tau &\sim \text{Poisson}(\gamma\tau), \\
 \end{aligned}
 $$ {#eq-augW}
 
-The gamma distribution is parameterised by shape and rate. The truncated gamma distribution is sampled exactly using the inverse CDF method and $\tau$ is obtained as the positive square root of the draw. The latent variable $W$ is redrawn given the current $\tau$ at every iteration and then discarded, so the conditional distributions of the other parameters are unchanged. 
+The gamma distribution is parameterised by shape and rate. The truncated gamma distribution is sampled exactly using the inverse CDF method and $\tau$ is obtained as the positive square root of the draw. The latent variable $W$ is redrawn given the current $\tau$ at every iteration and then discarded, so the conditional distributions of the other parameters are unchanged.
 
 ## The Gibbs sampling algorithm
 
@@ -416,7 +415,6 @@ $$
 
 where $\mathbf{I}_3$ is the $3 \times 3$ identity matrix. However, we would like to tune our random walk to have a more appropriate covariance matrix. To achieve this, we use the first 3 000 iterations of each chain as a burn-in, and estimate the covariance matrix $\Sigma$ of our transformed parameters from the last 1 500 of these iterations. Each of our retained draws then has its step drawn from
 
-
 $$
 \boldsymbol{e} \sim \text{N}\left(\boldsymbol{0},\, \frac{2.38^2}{3}\, \Sigma\right),
 $$
@@ -601,25 +599,181 @@ stan_tab$ESS = round(stan_tab$ESS)
 knitr::kable(stan_tab, digits = 2, escape = FALSE, align = "r")
 ```
 
+# Question e
+
+```{r}
+#| label: e-data
+#| echo: false
+
+pars4     = c("mu", "sigma2", "tau", "sigma")
+pars3     = pars4[1:3]
+p_lab     = c(mu = "mu", sigma2 = "sigma^2", tau = "tau")
+mh_d      = as.data.frame(mh_mat[, pars4])
+stan_d    = as.data.frame(as.matrix(stanFit, pars = pars4))
+stan_ess4 = stan_sum[pars4, "n_eff"]
+```
+
+We compare the posterior distributions obtained from the Metropolis-Hastings (MH) sampler in Question c and the Stan sampler in Question d; the top row of @fig-compare overlays the marginal densities and the bottom row are the corresponding quantile-quantile plot. There is strong visual agreement in the posterior marginal distributions obtained by both samplers and we conclude that the MH sampler has been implemented correctly and converged to the posterior distribution.
+
+```{r}
+#| label: fig-compare
+#| fig-cap: "Comparison of the Metropolis-Hastings (MH) and Stan (NUTS) posteriors. Top row: marginal posterior densities. Bottom row: quantile-quantile plots of the MH draws against the Stan draws, where points on the dashed line indicate identical distributions."
+#| fig-width: 7
+#| fig-height: 4.5
+#| echo: false
+
+p_expr = list(expression(mu), expression(sigma^2), expression(tau))
+pr     = seq(0.005, 0.995, by = 0.005)
+op     = par(mfrow = c(2, 3), mar = c(4, 4, 2, 1), mgp = c(2.4, 0.8, 0))
+
+## Top row: overlaid marginal posterior densities
+for (k in 1:3) {
+  p  = pars3[k]
+  dm = density(mh_d[[p]])
+  ds = density(stan_d[[p]])
+  plot(dm, col = "purple", lwd = 1.5, main = p_expr[[k]], xlab = "Value",
+       ylab = "Posterior density", ylim = c(0, max(dm$y, ds$y)))
+  lines(ds, col = "steelblue", lwd = 1.5, lty = 2)
+  if (k == 1) {
+    legend("topright", legend = c("MH", "Stan"), col = c("purple", "steelblue"),
+           lty = c(1, 2), lwd = 1.5, bty = "n", cex = 0.8)
+  }
+}
+
+## Bottom row: quantile-quantile plots
+for (k in 1:3) {
+  p = pars3[k]
+  plot(quantile(stan_d[[p]], pr), quantile(mh_d[[p]], pr), pch = 16, cex = 0.5,
+       main = p_expr[[k]], xlab = "Stan quantiles", ylab = "MH quantiles")
+  abline(0, 1, col = "red", lty = 2)
+}
+par(op)
+```
+
+We may also compare our estimates obtained by each sampler; for each parameter, we report the difference in the posterior means (MH minus Stan), the pooled variance $s_p^2$ of the two sets of draws, and the $p$-value of a two-sample $t$-test of the null hypothesis that the posterior means are equal. Since the draws of our samplers are autocorrelated, the standard error utilizes the effective sample size as opposed to the number of iterations $\sqrt{s_p^2\,(1/\text{ESS}_\text{MH} + 1/\text{ESS}_\text{Stan})}$, the resulting $t$-distribution has $\text{ESS}_\text{MH} + \text{ESS}_\text{Stan} - 2$ degrees of freedom. The table also gives the differences in the 2.5%, 50% and 97.5% posterior quantiles and the Kolmogorov-Smirnov distance $D$ between the two sets of draws.
+
+```{r}
+#| label: tbl-compare
+#| tbl-cap: "Comparison of samplers, containing the difference in estimates, the pooled variance and p-value of the two-sample t-test in addition to the Kolomogorov-Smirnov distance between the draws."
+#| echo: false
+
+use_ess = TRUE    # TRUE: effective sample sizes in the standard error; FALSE: naive, all draws independent
+qprobs  = c(0.025, 0.5, 0.975)
+
+cmp = do.call(rbind, lapply(pars3, function(p) {
+  x   = mh_d[[p]]
+  s   = stan_d[[p]]
+  n1  = length(x)
+  n2  = length(s)
+  ne1 = if (use_ess) ess[p]       else n1
+  ne2 = if (use_ess) stan_ess4[p] else n2
+  sp2 = ((n1 - 1) * var(x) + (n2 - 1) * var(s)) / (n1 + n2 - 2)   # pooled variance
+  d   = mean(x) - mean(s)
+  tt  = d / sqrt(sp2 * (1 / ne1 + 1 / ne2))
+  pv  = 2 * pt(-abs(tt), df = ne1 + ne2 - 2)
+  qd  = unname(quantile(x, qprobs) - quantile(s, qprobs))
+  data.frame(diff_mean = d, diff_sd = d / sqrt(sp2), pooled_var = sp2,
+             t = unname(tt), p = unname(pv),
+             d_lo = qd[1], d_med = qd[2], d_hi = qd[3],
+             D = unname(suppressWarnings(ks.test(x, s)$statistic)))
+}))
+rownames(cmp) = pars3
+
+cmp_tab = cmp[, c("diff_mean", "pooled_var", "p", "d_lo", "d_med", "d_hi", "D")]
+colnames(cmp_tab) = c("Mean diff.", "Pooled var.", "$p$-value",
+                      "2.5% diff.", "Median diff.", "97.5% diff.", "$D$")
+rownames(cmp_tab) = c("$\\mu$", "$\\sigma^2$", "$\\tau$")
+kable(cmp_tab, digits = 3, escape = FALSE)
+```
+
+```{r}
+#| label: e-eff
+#| echo: false
+
+eff = data.frame(ess_mh   = unname(ess[pars4]),
+                 ess_stan = unname(stan_ess4))
+eff$ratio     = eff$ess_stan / eff$ess_mh
+eff$frac_mh   = eff$ess_mh   / nrow(mh_d)
+eff$frac_stan = eff$ess_stan / nrow(stan_d)
+```
+
+So the estimates appear to not differ any more than would be expected by monte-carlo error. The samplers do differ in efficiency, however. The effective sample size of the MH algorithm is much smaller than the effective sample size utilized by stan (due to the covariance between $\mu$ and $\tau$). This is due to how each samplers explore the posterior surface; NUTS uses gradient information to move along this ridge, whereas the random walk, with a fixed proposal covariance, takes small steps to keep its acceptance rate. The MH sampler needs no gradients, but NUTS gives the same answer from far fewer draws.
+
+# Question f
+
+```{r}
+#| label: f-draws
+#| echo: false
+
+# Day 1 = 1 July 1978 (sanderlings help file):
+to_date = function(d) sub("^0", "", format(as.Date("1978-06-30") + round(d), "%d %b"))
+
+post       = as.data.frame(mh_mat[, c("mu", "sigma2", "tau")])  # use stan_d for the Stan draws
+post$sigma = sqrt(post$sigma2)
+post$mid   = post$mu + post$tau / 2      # midpoint of moult
+post$end   = post$mu + post$tau          # completion date
+post$rate  = 100 / post$tau              # % of moult completed per day
+
+qs = t(sapply(post[, c("mu", "mid", "end", "tau", "sigma", "rate")],
+              quantile, probs = c(0.025, 0.5, 0.975)))
+
+# Central 95% of individual start dates, and the span of the whole population's moult:
+lo95     = qs["mu", "50%"] - 1.96 * qs["sigma", "50%"]
+hi95     = qs["mu", "50%"] + 1.96 * qs["sigma", "50%"]
+pop_span = (hi95 + qs["tau", "50%"]) - lo95
+```
+
+We interpret the Type 3 posterior biologically using the pooled Metropolis-Hastings draws. Besides the model parameters, we compute the midpoint $\mu + \tau/2$ and the completion date $\mu + \tau$ of moult for each draw, so that their uncertainty accounts for the correlation between $\mu$ and $\tau$. Day 1 is 1 July 1978, so day numbers are converted to calendar dates in @tbl-bio.
+
+```{r}
+#| label: tbl-bio
+#| tbl-cap: "Posterior medians and 95% credible intervals of the biological quantities (Type 3 model). Day 1 is 1 July 1978."
+#| echo: false
+
+dg      = c(1, 1, 1, 1, 1, 2)
+fmt     = function(x) unname(mapply(function(v, d) formatC(v, format = "f", digits = d), x, dg))
+is_date = c(TRUE, TRUE, TRUE, FALSE, FALSE, FALSE)
+
+bio = data.frame(
+  Quantity = c("Mean start date $\\mu$", "Mean midpoint $\\mu + \\tau/2$",
+               "Mean completion date $\\mu + \\tau$", "Duration $\\tau$ (days)",
+               "SD of start dates $\\sigma$ (days)", "Moult rate (\\% per day)"),
+  Median   = fmt(qs[, "50%"]),
+  CrI      = sprintf("(%s, %s)", fmt(qs[, "2.5%"]), fmt(qs[, "97.5%"])),
+  Date     = ifelse(is_date,
+                    sprintf("%s (%s to %s)", to_date(qs[, "50%"]),
+                            to_date(qs[, "2.5%"]), to_date(qs[, "97.5%"])), ""))
+colnames(bio) = c("Quantity", "Median", "95% CrI", "Calendar date (95% CrI)")
+rownames(bio) = NULL
+kable(bio, escape = FALSE, align = "lrrr")
+```
+
+The posterior medians are $\mu =$ `r sprintf("%.1f", qs["mu", "50%"])`, $\tau =$ `r sprintf("%.1f", qs["tau", "50%"])` and $\sigma =$ `r sprintf("%.1f", qs["sigma", "50%"])` days (@tbl-bio). The population's mean start date of moult is therefore about `r to_date(qs["mu", "50%"])` (95% credible interval `r to_date(qs["mu", "2.5%"])` to `r to_date(qs["mu", "97.5%"])`). A bird takes about `r sprintf("%.0f", qs["tau", "50%"])` days, or `r sprintf("%.1f", qs["tau", "50%"] / 30.4)` months, to complete its moult, so its moult index rises by about `r sprintf("%.1f", qs["rate", "50%"])`% per day (although this estimate is imprecise). The mean midpoint of moult, $\mu + \tau/2$, is about `r to_date(qs["mid", "50%"])` and the mean completion date, $\mu + \tau$, is about `r to_date(qs["end", "50%"])`; the anti-correlation between $\mu$ and $\tau$ means that we can make more precise estimates on the midpoints and completion dates than implied by independence.
+
+The standard deviation $\sigma$ describes how synchronised the birds are. About 95% of birds start moulting within $\pm$ `r sprintf("%.0f", 1.96 * qs["sigma", "50%"])` days of the mean, that is, between about `r to_date(lo95)` and `r to_date(hi95)`. This spread of start dates is comparable to the duration of an individual's moult, so the moults of different birds overlap substantially. Thus, while each bird is in moult for about `r sprintf("%.0f", qs["tau", "50%"] / 30.4)` months, the central 95% of the population is in moult at some point over about `r sprintf("%.1f", pop_span / 30.4)` months, from early `r format(as.Date("1978-06-30") + round(lo95), "%B")` to `r format(as.Date("1978-06-30") + round(hi95 + qs["tau", "50%"]), "%B")`.
+
+These estimates should be interpreted with some care. The interval for $\mu$ is wide because the Type 3 model uses only the 66 moulting birds, 55 of which were caught on a single day, so the data cannot easily separate an early start with a long moult from a late start with a short moult. The posteriors of $\mu$ and $\tau$ are also cut off at the prior bounds of 160 and 50, respectively, so these estimates partly reflect the priors. Finally, the estimates describe one season at one site, and assume that all birds moult at the same constant rate and that start dates are normally distributed.
+
+
 # References
 
-- Carpenter, B., Gelman, A., Hoffman, M. D., Lee, D., Goodrich, B., Betancourt, M., Brubaker, M., Guo, J., Li, P., & Riddell, A. (2017). Stan: A probabilistic programming language. Journal of Statistical Software, 76(1), 1–32. https://doi.org/10.18637/jss.v076.i01
+-   Carpenter, B., Gelman, A., Hoffman, M. D., Lee, D., Goodrich, B., Betancourt, M., Brubaker, M., Guo, J., Li, P., & Riddell, A. (2017). Stan: A probabilistic programming language. Journal of Statistical Software, 76(1), 1--32. https://doi.org/10.18637/jss.v076.i01
 
-- Erni, B., Bonnevie, B. T., Oschadleus, H.-D., Altwegg, R. and Underhill, L. G. (2013). moult: An R package to analyze moult in birds. Journal of Statistical Software, 52(8), 1–23. http://www.jstatsoft.org/v52/i08/
+-   Erni, B., Bonnevie, B. T., Oschadleus, H.-D., Altwegg, R. and Underhill, L. G. (2013). moult: An R package to analyze moult in birds. Journal of Statistical Software, 52(8), 1--23. http://www.jstatsoft.org/v52/i08/
 
-- Gelman, A. and Rubin, D. B. (1992). Inference from iterative simulation using multiple sequences. Statistical Science, 7(4), 457–472.
+-   Gelman, A. and Rubin, D. B. (1992). Inference from iterative simulation using multiple sequences. Statistical Science, 7(4), 457--472.
 
-- Hoffman, M. D. and Gelman, A. (2014). The No-U-Turn Sampler: Adaptively setting path lengths in Hamiltonian Monte Carlo. Journal of Machine Learning Research, 15, 1593–1623.
+-   Hoffman, M. D. and Gelman, A. (2014). The No-U-Turn Sampler: Adaptively setting path lengths in Hamiltonian Monte Carlo. Journal of Machine Learning Research, 15, 1593--1623.
 
-- Roberts, G. O., Gelman, A. and Gilks, W. R. (1997). Weak convergence and optimal scaling of random walk Metropolis algorithms. The Annals of Applied Probability, 7(1), 110–120.
+-   Roberts, G. O., Gelman, A. and Gilks, W. R. (1997). Weak convergence and optimal scaling of random walk Metropolis algorithms. The Annals of Applied Probability, 7(1), 110--120.
 
-- Roberts, G. O. and Rosenthal, J. S. (2001). Optimal scaling for various Metropolis-Hastings algorithms. Statistical Science, 16(4), 351–367.
+-   Roberts, G. O. and Rosenthal, J. S. (2001). Optimal scaling for various Metropolis-Hastings algorithms. Statistical Science, 16(4), 351--367.
 
-- Stan Development Team. (2025). Stan Modeling Language Users Guide and Reference Manual, Version 2.33. https://mc-stan.org
+-   Stan Development Team. (2025). Stan Modeling Language Users Guide and Reference Manual, Version 2.33. https://mc-stan.org
 
-- Sun, J., Kong, M. and Pal, S. (2021). The Modified-Half-Normal distribution: Properties and an efficient sampling scheme. Communications in Statistics - Theory and Methods, 52(5), 1591–1613. https://doi.org/10.1080/03610926.2021.1934700
+-   Sun, J., Kong, M. and Pal, S. (2021). The Modified-Half-Normal distribution: Properties and an efficient sampling scheme. Communications in Statistics - Theory and Methods, 52(5), 1591--1613. https://doi.org/10.1080/03610926.2021.1934700
 
-- Underhill, L. G. and Zucchini, W. (1988). A model for avian primary moult. Ibis, 130, 358–372.
+-   Underhill, L. G. and Zucchini, W. (1988). A model for avian primary moult. Ibis, 130, 358--372.
 
 # Appendix A: Question b derivations
 
@@ -687,8 +841,7 @@ $$
 T_i \mid \mu, \sigma^2, \tau, s_i = 1, \quad t_i &\sim \text{N}(\mu, \sigma^2)\, I_{\{T_i \leq t_i - \tau\}}, & i \in \mathcal{F}, \\
 T_i \mid \mu, \sigma^2, \tau, s_i = 3, \quad t_i &\sim \text{N}(\mu, \sigma^2)\, I_{\{T_i > t_i\}}, & i \in \mathcal{N},
 \end{aligned}
-$$
-as given in @eq-condT.
+$$ as given in @eq-condT.
 
 ## Conditional distribution of $\mu$
 
@@ -718,8 +871,7 @@ since $\sum_{i=1}^n (T_i - \bar{T}) = 0$. Absorbing $\text{exp}\left(-\frac{1}{2
 
 $$
 \pi(\mu \mid \sigma^2, \tau, \boldsymbol{s}, \boldsymbol{y}, \boldsymbol{t}, \boldsymbol{T}) \propto \text{exp}\left(-\frac{n}{2\sigma^2}(\mu - \bar{T})^2\right) I_{\{100 \leq \mu \leq 160\}},
-$$
-which is the kernel of the truncated normal distribution in @eq-condmu.
+$$ which is the kernel of the truncated normal distribution in @eq-condmu.
 
 ## Conditional distribution of $\sigma^2$
 
@@ -732,8 +884,7 @@ $$
 & \propto (\sigma^2)^{-n/2} \text{exp}\left(-\frac{S}{2\sigma^2}\right) (\sigma^2)^{-2} \text{exp}\left(-\frac{1}{\sigma^2}\right) \\
 & = (\sigma^2)^{-\left(\frac{n}{2} + 1\right) - 1} \text{exp}\left(-\frac{1 + \frac{S}{2}}{\sigma^2}\right),
 \end{aligned}
-$$
-which is the kernel of the inverse-gamma distribution in @eq-condsigma2.
+$$ which is the kernel of the inverse-gamma distribution in @eq-condsigma2.
 
 ## Conditional distribution of $\tau$
 
@@ -896,7 +1047,6 @@ pairs(thin_stan, lower.panel = panel_pts, upper.panel = panel_cor,
 ```{=latex}
 \clearpage
 ```
-
 # Appendix C: R code
 
 ```{r ref.label=knitr::all_labels(), echo=TRUE, eval=FALSE}
