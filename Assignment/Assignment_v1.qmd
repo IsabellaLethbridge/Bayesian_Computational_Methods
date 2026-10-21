@@ -28,7 +28,17 @@ execute:
 editor: visual
 ---
 
+# Plagiarism Declaration
+
+1.  We know that plagiarism is wrong. Plagiarism is to use another's work and pretend that it is one's own.
+
+2.  This submission is our own work.
+
+3.  We have not allowed, and will not allow, anyone to copy our work with the intention of passing it off as their own work.
+
 # Introduction
+
+Moulting is there process in which birds replace old and worn-out feathers with newer ones. Moult data involves the capture of a bird, recording the date of capture and making an assessment of moult progression based on the primary feathers of the bird. Moult scores are scaled to lie between 0 and 1, with 0 indicating that moutling has yet to begin and 1 indicating that moulting has been completed. This assignment utilizes bayesian methods to estimate the mean start dates in moult $\mu$, variance in start data $\sigma^2$ as well as moult duration in the data set found within the sanderlings R package.
 
 # Question a
 
@@ -748,9 +758,9 @@ rownames(bio) = NULL
 kable(bio, escape = FALSE, align = "lrrr")
 ```
 
-The posterior medians are $\mu =$ `r sprintf("%.1f", qs["mu", "50%"])`, $\tau =$ `r sprintf("%.1f", qs["tau", "50%"])` and $\sigma =$ `r sprintf("%.1f", qs["sigma", "50%"])` days (@tbl-bio). The population's mean start date of moult is therefore about `r to_date(qs["mu", "50%"])` (95% credible interval `r to_date(qs["mu", "2.5%"])` to `r to_date(qs["mu", "97.5%"])`). A bird takes about `r sprintf("%.0f", qs["tau", "50%"])` days, or `r sprintf("%.1f", qs["tau", "50%"] / 30.4)` months, to complete its moult, so its moult index rises by about `r sprintf("%.1f", qs["rate", "50%"])`% per day (although this estimate is imprecise). The mean midpoint of moult, $\mu + \tau/2$, is about `r to_date(qs["mid", "50%"])` and the mean completion date, $\mu + \tau$, is about `r to_date(qs["end", "50%"])`; the anti-correlation between $\mu$ and $\tau$ means that we can make more precise estimates on the midpoints and completion dates than implied by independence.
+The posterior medians are $\mu = 129.6$, $\tau =93.5$ and $\sigma =17.4$ days (@tbl-bio). The population's mean start date of moult is therefore estimated to occur about the 7th of November. A bird takes about 94 days to complete its moult, and the mean midpoint of moult, $\mu + \tau/2$, occurs at around the 24th of December and is completed, $\mu + \tau$, at around the 8th of February; the anti-correlation between $\mu$ and $\tau$ means that we can make more precise estimates on the midpoints and completion dates than implied by independence.
 
-The standard deviation $\sigma$ describes how synchronised the birds are. About 95% of birds start moulting within $\pm$ `r sprintf("%.0f", 1.96 * qs["sigma", "50%"])` days of the mean, that is, between about `r to_date(lo95)` and `r to_date(hi95)`. This spread of start dates is comparable to the duration of an individual's moult, so the moults of different birds overlap substantially. Thus, while each bird is in moult for about `r sprintf("%.0f", qs["tau", "50%"] / 30.4)` months, the central 95% of the population is in moult at some point over about `r sprintf("%.1f", pop_span / 30.4)` months, from early `r format(as.Date("1978-06-30") + round(lo95), "%B")` to `r format(as.Date("1978-06-30") + round(hi95 + qs["tau", "50%"]), "%B")`.
+The standard deviation $\sigma$ describes how synchronised the birds are; 95% of birds start moulting within $\pm 34$ days of the mean, that is, between about the 3rd of October and 11th of December. This spread of start dates is comparable to the duration of an individual's moult, so the moults of different birds overlap substantially. Thus, while each bird is in moult for about 3 months, the central 95% of the population is in moult at some point over about 5 months, from early October to March.
 
 These estimates should be interpreted with some care. The interval for $\mu$ is wide because the Type 3 model uses only the 66 moulting birds, 55 of which were caught on a single day, so the data cannot easily separate an early start with a long moult from a late start with a short moult. The posteriors of $\mu$ and $\tau$ are also cut off at the prior bounds of 160 and 50, respectively, so these estimates partly reflect the priors. Finally, the estimates describe one season at one site, and assume that all birds moult at the same constant rate and that start dates are normally distributed.
 
