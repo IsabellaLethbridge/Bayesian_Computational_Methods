@@ -28,7 +28,7 @@ execute:
 editor: visual
 ---
 
-# Plagiarism Declaration
+## Plagiarism Declaration
 
 1.  We know that plagiarism is wrong. Plagiarism is to use another's work and pretend that it is one's own.
 
@@ -36,9 +36,22 @@ editor: visual
 
 3.  We have not allowed, and will not allow, anyone to copy our work with the intention of passing it off as their own work.
 
+**Signature**: Isabella Lethbridge and Tayyeb Abrahams
+
+## AI Declaration
+
+We used generative AI tools (Claude, Anthropic) to assist with the following parts of this assignment: 1. Formatting mathematical derivations in `LaTeX` 2. Debugging R and Stan code and producing and formatting plots and tables 3. Improving the understanding of model implementation in Stan 4. Proofreading to identify spelling and grammar errors
+
+All modelling decisions, derivations, analysis and interpretation are our own. We checked all AI-assisted output and take full responsibility for the content of this assignment.
+
+**Signature**: Isabella Lethbridge and Tayyeb Abrahams
+
+```{=latex}
+\clearpage
+```
 # Introduction
 
-Moulting is there process in which birds replace old and worn-out feathers with newer ones. Moult data involves the capture of a bird, recording the date of capture and making an assessment of moult progression based on the primary feathers of the bird. Moult scores are scaled to lie between 0 and 1, with 0 indicating that moutling has yet to begin and 1 indicating that moulting has been completed. This assignment utilizes bayesian methods to estimate the mean start dates in moult $\mu$, variance in start data $\sigma^2$ as well as moult duration in the data set found within the sanderlings R package.
+Moulting is the process in which birds replace their old and worn-out feathers with newer ones. Moult data collection involves the capture of a bird, recording the date of capture and making an assessment of moult progression based on the primary feathers of the bird. Moult scores are scaled to lie between 0 and 1, with 0 indicating that moulting has yet to begin and 1 indicating that moulting has been completed. Underhill and Zucchini (1988) developed likelihood-based models for such data, which differ in the information that is observed. This assignment utilizes Bayesian methods to estimate the mean start dates of moult $\mu$, variance in start dates $\sigma^2$ as well as moult duration $\tau$ in the `sanderlings` data set found within the `moult` R package (Erni et al., 2013).
 
 # Question a
 
@@ -397,12 +410,10 @@ cor_mat   <- cor(pooled[, pars])
 acc_rates <- sapply(fits, `[[`, "accept_rate")
 burn_acc  <- sapply(fits, `[[`, "burn_accept")
 
-## Names used in Questions e-f
-mh_post <- chains
 mh_mat  <- pooled
 ```
 
-A random walk Metropolis-Hastings algorithm is used to sample from the posterior distribution of the Type 3 model, with the likelihood given in the assignment and the priors in @eq-priors. The random walk steps are drawn from a multivariate normal distribution, which has support over the entire real line, whereas the parameters do not. The prior restricts the mean start date $\mu$ to the interval $(100, 160)$ and the duration of moult $\tau$ to $(50, 180)$. The variance $\sigma^2$ is constrained to be positive. Thus, each parameter is mapped to the real line using the transformations
+A random walk Metropolis-Hastings algorithm is used to sample from the posterior distribution of the Type 3 model, with the likelihood given in the assignment and the priors in @eq-priors. The random walk steps are drawn from a multivariate normal distribution, which has support over the entire real line, whereas the parameters do not. The prior restricts the mean start date $\mu$ to the interval $(100, 160)$ and the duration of moult $\tau$ to $(50, 180)$. The variance $\sigma^2$ is constrained to be positive. Therefore, each parameter is mapped to the real line using the following transformations
 
 $$
 \phi_1 = \text{logit}\left(\frac{\mu - 100}{60}\right), \qquad \phi_2 = \log \sigma^2, \qquad \phi_3 = \text{logit}\left(\frac{\tau - 50}{130}\right).
@@ -593,7 +604,7 @@ We use Stan (Carpenter et al., 2017; Stan Development Team, 2025) to sample from
 
 Our Stan program consists of the following blocks. The `data` block contains the capture days $t_i$ and moult scores $y_i$ of the $m = 66$ moulting birds. The `parameters` block declares $\mu$, $\sigma^2$ and $\tau$, restricted to $(100, 160)$, $(0, \infty)$ and $(50, 180)$, respectively. Stan maps these parameters to the real line using the same transformations as in @eq-transform and includes the Jacobian automatically. The `model` block contains the priors in @eq-priors and the Type 3 log-likelihood, where $\log Q(t_i)$ is computed using `log_diff_exp` for numerical stability.
 
-To allow for comparison with Question c, we use the same number of chains, iterations and burn-in as for the Metropolis-Hastings sampler. We run three chains of 53 000 iterations each (seed 2026). The first 3 000 iterations of each chain are warmup iterations, which are used to tune the sampler and are then discarded. All other settings are Stan's defaults, with a target acceptance rate of 0.8, a maximum tree depth of 10 and random starting values drawn from $\text{Uniform}(-2, 2)$ on the transformed scale. The trace plots in @fig-stan-trace (Appendix B) show that the chains mix well from the start and $\hat{R}$ is `r sprintf("%.2f", stan_rhat)` for all parameters, with `r n_div` divergent transitions. The posterior summaries are given in @tbl-stan and the joint posterior distribution is shown in @fig-stan-pairs (Appendix B).
+To allow for comparison with Question c, we use the same number of chains, iterations and burn-in as for the Metropolis-Hastings sampler. We run three chains of 53 000 iterations each (seed 2026). The first 3 000 iterations of each chain are warmup iterations, which are used to tune the sampler and are then discarded. All other settings are Stan's defaults, with a target acceptance rate of 0.8, a maximum tree depth of 10 and random starting values drawn from $\text{Uniform}(-2, 2)$ on the transformed scale. The trace plots in @fig-stan-trace (Appendix B) show that the chains mix well from the start, so $3\,000$ warmup iterations are sufficient. The value of $\hat{R}$ is `r sprintf("%.2f", stan_rhat)` for all parameters, with `r n_div` divergent transitions. The posterior summaries are given in @tbl-stan and the joint posterior distribution is shown in @fig-stan-pairs (Appendix B).
 
 ```{r}
 #| label: tbl-stan
@@ -623,77 +634,38 @@ stan_d    = as.data.frame(as.matrix(stanFit, pars = pars4))
 stan_ess4 = stan_sum[pars4, "n_eff"]
 ```
 
-We compare the posterior distributions obtained from the Metropolis-Hastings (MH) sampler in Question c and the Stan sampler in Question d; the top row of @fig-compare overlays the marginal densities and the bottom row are the corresponding quantile-quantile plot. There is strong visual agreement in the posterior marginal distributions obtained by both samplers and we conclude that the MH sampler has been implemented correctly and converged to the posterior distribution.
-
-```{r}
-#| label: fig-compare
-#| fig-cap: "Comparison of the Metropolis-Hastings (MH) and Stan (NUTS) posteriors. Top row: marginal posterior densities. Bottom row: quantile-quantile plots of the MH draws against the Stan draws, where points on the dashed line indicate identical distributions."
-#| fig-width: 7
-#| fig-height: 4.5
-#| echo: false
-
-p_expr = list(expression(mu), expression(sigma^2), expression(tau))
-pr     = seq(0.005, 0.995, by = 0.005)
-op     = par(mfrow = c(2, 3), mar = c(4, 4, 2, 1), mgp = c(2.4, 0.8, 0))
-
-## Top row: overlaid marginal posterior densities
-for (k in 1:3) {
-  p  = pars3[k]
-  dm = density(mh_d[[p]])
-  ds = density(stan_d[[p]])
-  plot(dm, col = "purple", lwd = 1.5, main = p_expr[[k]], xlab = "Value",
-       ylab = "Posterior density", ylim = c(0, max(dm$y, ds$y)))
-  lines(ds, col = "steelblue", lwd = 1.5, lty = 2)
-  if (k == 1) {
-    legend("topright", legend = c("MH", "Stan"), col = c("purple", "steelblue"),
-           lty = c(1, 2), lwd = 1.5, bty = "n", cex = 0.8)
-  }
-}
-
-## Bottom row: quantile-quantile plots
-for (k in 1:3) {
-  p = pars3[k]
-  plot(quantile(stan_d[[p]], pr), quantile(mh_d[[p]], pr), pch = 16, cex = 0.5,
-       main = p_expr[[k]], xlab = "Stan quantiles", ylab = "MH quantiles")
-  abline(0, 1, col = "red", lty = 2)
-}
-par(op)
-```
+We compare the posterior distributions obtained from the Metropolis-Hastings (MH) sampler in Question c and the Stan sampler in Question d. The top row of @fig-compare (Appendix B) overlays the marginal posterior densities and the bottom row shows the corresponding quantile-quantile plots. The marginal posterior distributions obtained by the two samplers agree closely.
 
 We may also compare our estimates obtained by each sampler; for each parameter, we report the difference in the posterior means (MH minus Stan), the pooled variance $s_p^2$ of the two sets of draws, and the $p$-value of a two-sample $t$-test of the null hypothesis that the posterior means are equal. Since the draws of our samplers are autocorrelated, the standard error utilizes the effective sample size as opposed to the number of iterations $\sqrt{s_p^2\,(1/\text{ESS}_\text{MH} + 1/\text{ESS}_\text{Stan})}$, the resulting $t$-distribution has $\text{ESS}_\text{MH} + \text{ESS}_\text{Stan} - 2$ degrees of freedom. The table also gives the differences in the 2.5%, 50% and 97.5% posterior quantiles and the Kolmogorov-Smirnov distance $D$ between the two sets of draws.
 
 ```{r}
 #| label: tbl-compare
-#| tbl-cap: "Comparison of samplers, containing the difference in estimates, the pooled variance and p-value of the two-sample t-test in addition to the Kolomogorov-Smirnov distance between the draws."
+#| tbl-cap: "Comparison of the samplers: difference in posterior means, pooled variance and p-value of the two-sample t-test (using effective sample sizes), differences in posterior quantiles and the Kolmogorov-Smirnov distance between the draws."
 #| echo: false
 
-use_ess = TRUE    # TRUE: effective sample sizes in the standard error; FALSE: naive, all draws independent
-qprobs  = c(0.025, 0.5, 0.975)
+qprobs = c(0.025, 0.5, 0.975)
 
 cmp = do.call(rbind, lapply(pars3, function(p) {
   x   = mh_d[[p]]
   s   = stan_d[[p]]
   n1  = length(x)
   n2  = length(s)
-  ne1 = if (use_ess) ess[p]       else n1
-  ne2 = if (use_ess) stan_ess4[p] else n2
+  ne1 = ess[p]                # effective sample sizes, since draws are autocorrelated
+  ne2 = stan_ess4[p]
   sp2 = ((n1 - 1) * var(x) + (n2 - 1) * var(s)) / (n1 + n2 - 2)   # pooled variance
-  d   = mean(x) - mean(s)
+  d   = mean(x) - mean(s)                                         # MH minus Stan
   tt  = d / sqrt(sp2 * (1 / ne1 + 1 / ne2))
   pv  = 2 * pt(-abs(tt), df = ne1 + ne2 - 2)
   qd  = unname(quantile(x, qprobs) - quantile(s, qprobs))
-  data.frame(diff_mean = d, diff_sd = d / sqrt(sp2), pooled_var = sp2,
-             t = unname(tt), p = unname(pv),
+  data.frame(diff_mean = d, pooled_var = sp2, p = unname(pv),
              d_lo = qd[1], d_med = qd[2], d_hi = qd[3],
              D = unname(suppressWarnings(ks.test(x, s)$statistic)))
 }))
-rownames(cmp) = pars3
 
-cmp_tab = cmp[, c("diff_mean", "pooled_var", "p", "d_lo", "d_med", "d_hi", "D")]
-colnames(cmp_tab) = c("Mean diff.", "Pooled var.", "$p$-value",
-                      "2.5% diff.", "Median diff.", "97.5% diff.", "$D$")
-rownames(cmp_tab) = c("$\\mu$", "$\\sigma^2$", "$\\tau$")
-kable(cmp_tab, digits = 3, escape = FALSE)
+colnames(cmp) = c("Mean diff.", "Pooled var.", "$p$-value",
+                  "2.5% diff.", "Median diff.", "97.5% diff.", "$D$")
+rownames(cmp) = c("$\\mu$", "$\\sigma^2$", "$\\tau$")
+kable(cmp, digits = 3, escape = FALSE)
 ```
 
 ```{r}
@@ -707,7 +679,7 @@ eff$frac_mh   = eff$ess_mh   / nrow(mh_d)
 eff$frac_stan = eff$ess_stan / nrow(stan_d)
 ```
 
-So the estimates appear to not differ any more than would be expected by monte-carlo error. The samplers do differ in efficiency, however. The effective sample size of the MH algorithm is much smaller than the effective sample size utilized by stan (due to the covariance between $\mu$ and $\tau$). This is due to how each samplers explore the posterior surface; NUTS uses gradient information to move along this ridge, whereas the random walk, with a fixed proposal covariance, takes small steps to keep its acceptance rate. The MH sampler needs no gradients, but NUTS gives the same answer from far fewer draws.
+The differences between the posterior means and quantiles of the two samplers are small relative to the posterior standard deviations, and none of the differences in means is significant (@tbl-compare). Thus, the two samplers agree up to Monte Carlo error, which is consistent with a correct implementation of the Metropolis-Hastings sampler. The samplers do, however, differ in efficiency per iteration. From the same $150\,000$ retained draws, the effective sample sizes of Stan are `r sprintf("%.1f", min(eff$ratio[1:3]))` to `r sprintf("%.1f", max(eff$ratio[1:3]))` times larger than those of the Metropolis-Hastings sampler (@tbl-mh3 and @tbl-stan). This is due to how each sampler explores the posterior surface: NUTS uses the gradient of the log posterior to make long moves along the ridge created by the negative correlation between $\mu$ and $\tau$, whereas the random walk moves through the posterior in small steps, so successive draws are more strongly autocorrelated. However, NUTS is more computationally expensive, since it requires several gradient evaluations.
 
 # Question f
 
@@ -764,7 +736,6 @@ The standard deviation $\sigma$ describes how synchronised the birds are; 95% of
 
 These estimates should be interpreted with some care. The interval for $\mu$ is wide because the Type 3 model uses only the 66 moulting birds, 55 of which were caught on a single day, so the data cannot easily separate an early start with a long moult from a late start with a short moult. The posteriors of $\mu$ and $\tau$ are also cut off at the prior bounds of 160 and 50, respectively, so these estimates partly reflect the priors. Finally, the estimates describe one season at one site, and assume that all birds moult at the same constant rate and that start dates are normally distributed.
 
-
 # References
 
 -   Carpenter, B., Gelman, A., Hoffman, M. D., Lee, D., Goodrich, B., Betancourt, M., Brubaker, M., Guo, J., Li, P., & Riddell, A. (2017). Stan: A probabilistic programming language. Journal of Statistical Software, 76(1), 1--32. https://doi.org/10.18637/jss.v076.i01
@@ -785,6 +756,9 @@ These estimates should be interpreted with some care. The interval for $\mu$ is 
 
 -   Underhill, L. G. and Zucchini, W. (1988). A model for avian primary moult. Ibis, 130, 358--372.
 
+```{=latex}
+\clearpage
+```
 # Appendix A: Question b derivations
 
 ## Type 2 likelihood and posterior
@@ -957,6 +931,9 @@ which is the kernel of a $\text{Gamma}\left(\frac{m + 1 + W}{2}, \beta\right)$ d
 
 $W$ is drawn from its conditional distribution given the current $\tau$, followed by $\tau^2$ given $W$. This two-step update leaves the conditional distribution of $\tau$ in @eq-condtau invariant. If $\gamma < 0$, Lemma 5 of Sun et al. (2021) instead uses a generalised inverse Gaussian latent variable, which is not needed here.
 
+```{=latex}
+\clearpage
+```
 # Appendix B: Additional figures
 
 ```{r}
@@ -1052,6 +1029,41 @@ thin_stan <- stan_mat[seq(1, nrow(stan_mat), by = 20), ]
 pairs(thin_stan, lower.panel = panel_pts, upper.panel = panel_cor,
       diag.panel = panel_hist,
       labels = expression(mu, sigma^2, tau))
+```
+
+```{r}
+#| label: fig-compare
+#| fig-cap: "Comparison of the Metropolis-Hastings (MH) and Stan (NUTS) posteriors. Top row: marginal posterior densities. Bottom row: quantile-quantile plots of the MH draws against the Stan draws, where points on the dashed line indicate identical distributions."
+#| fig-width: 7
+#| fig-height: 4.5
+#| echo: false
+
+p_expr = list(expression(mu), expression(sigma^2), expression(tau))
+pr     = seq(0.005, 0.995, by = 0.005)
+op     = par(mfrow = c(2, 3), mar = c(4, 4, 2, 1), mgp = c(2.4, 0.8, 0))
+
+## Top row: overlaid marginal posterior densities
+for (k in 1:3) {
+  p  = pars3[k]
+  dm = density(mh_d[[p]])
+  ds = density(stan_d[[p]])
+  plot(dm, col = "purple", lwd = 1.5, main = p_expr[[k]], xlab = "Value",
+       ylab = "Posterior density", ylim = c(0, max(dm$y, ds$y)))
+  lines(ds, col = "steelblue", lwd = 1.5, lty = 2)
+  if (k == 1) {
+    legend("topright", legend = c("MH", "Stan"), col = c("purple", "steelblue"),
+           lty = c(1, 2), lwd = 1.5, bty = "n", cex = 0.8)
+  }
+}
+
+## Bottom row: quantile-quantile plots
+for (k in 1:3) {
+  p = pars3[k]
+  plot(quantile(stan_d[[p]], pr), quantile(mh_d[[p]], pr), pch = 16, cex = 0.5,
+       main = p_expr[[k]], xlab = "Stan quantiles", ylab = "MH quantiles")
+  abline(0, 1, col = "red", lty = 2)
+}
+par(op)
 ```
 
 ```{=latex}
